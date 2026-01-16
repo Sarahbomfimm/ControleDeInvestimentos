@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Investimentos 2026</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Controle de Investimentos 2026</h1>
+            <button id="novaCompraBtn" class="btn-primary">NOVA COMPRA</button>
+        </header>
+
+        <div id="resumoGeral" class="resumo-geral">
+            <h2>Resumo Geral</h2>
+            <div id="resumoCards"></div>
+        </div>
+
+        <div id="categoriasContainer"></div>
+    </div>
+
+    <!-- Modal Nova Compra -->
+    <div id="modalNovaCompra" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Nova Compra</h2>
+            <form id="formNovaCompra">
+                <div class="form-group">
+                    <label for="categoria">CATEGORIA:</label>
+                    <select id="categoria" required>
+                        <option value="">Selecione uma categoria</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="produto">NOME DO PRODUTO:</label>
+                    <input id="produto" list="produtosOptions" placeholder="Digite ou selecione um item" required>
+                    <datalist id="produtosOptions"></datalist>
+                </div>
+
+                <div class="form-group">
+                    <label for="valorCompra">VALOR DA COMPRA:</label>
+                    <input type="text" id="valorCompra" placeholder="R$ 0,00" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="parcelas">PARCELAS:</label>
+                    <input type="number" id="parcelas" min="1" max="12" value="1" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="dataCompra">DATA DA COMPRA:</label>
+                    <input type="date" id="dataCompra" required>
+                </div>
+
+                <button type="submit" class="btn-primary">FINALIZAR</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <!-- Modal Histórico de Compras -->
+    <div id="modalHistorico" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Histórico de Compras</h2>
+            <div id="historicoInfo" class="historico-info"></div>
+            <div id="historicoLista" class="historico-lista"></div>
+        </div>
+    </div>
+
+    <!-- Modal Itens da Categoria -->
+    <div id="modalItens" class="modal">
+        <div class="modal-content modal-large">
+            <span class="close">&times;</span>
+            <h2 id="tituloItens">Itens</h2>
+            <div id="itensContainer" class="itens-modal-container"></div>
+        </div>
+    </div>
+</body>
+</html>
