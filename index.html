@@ -1,19 +1,92 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Controle de Investimentos 2026</title>
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+    <link rel="shortcut icon" type="image/svg+xml" href="icon.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="style.css">
+
 </head>
+
 <body>
+    <button id="userAvatar" class="user-avatar-btn" type="button" aria-label="Perfil do usuário"></button>
+    <div id="loginOverlay" class="login-overlay">
+        <div class="login-panel">
+            <div class="login-badge">Acesso restrito</div>
+            <h1 class="login-title">Controle de Investimentos</h1>
+            <p class="login-subtitle">Entre para acompanhar os investimentos de 2026 do hotel.</p>
+
+            <form id="loginForm" class="login-form">
+                <div class="form-group">
+                    <label for="loginEmail">E-MAIL</label>
+                    <input type="email" id="loginEmail" placeholder="voce@hotel.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="loginSenha">SENHA</label>
+                    <input type="password" id="loginSenha" placeholder="Digite sua senha" required>
+                </div>
+                <div class="login-actions">
+                    <label class="remember-check">
+                        <input type="checkbox" id="loginLembrar">
+                        <span>Lembrar neste computador</span>
+                    </label>
+                    <button type="submit" class="btn-primary">ENTRAR</button>
+                </div>
+            </form>
+
+            <div class="login-footer">Hotel • Painel interno de investimentos 2026</div>
+        </div>
+    </div>
+
+    <div id="loadingScreen" class="loading-screen">
+        <div class="loading-animation">
+            <div class="loading-ring"></div>
+            <div class="loading-ring loading-ring-2"></div>
+            <div class="loading-ring loading-ring-3"></div>
+            <div class="loading-content">
+                <div class="loading-logo">CI</div>
+                <div class="loading-text">Carregando investimentos</div>
+                <div class="loading-dots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="userPanelBackdrop" class="user-panel-backdrop">
+        <aside class="user-panel">
+            <div class="user-panel-header">
+                <div id="userPanelAvatar" class="user-panel-avatar"></div>
+                <div>
+                    <div id="userPanelName" class="user-panel-name"></div>
+                    <div id="userPanelEmail" class="user-panel-email"></div>
+                </div>
+            </div>
+            <div class="user-panel-footer">
+                <button id="btnLogout" class="btn-logout">Sair da conta</button>
+            </div>
+        </aside>
+    </div>
+
     <div class="container">
         <header>
-            <h1>Controle de Investimentos 2026</h1>
-            <button id="novaCompraBtn" class="btn-primary">NOVA COMPRA</button>
+            <div class="header-main">
+                <h1><span class="app-title-main">Controle de Investimentos</span> <span
+                        class="app-title-badge">2026</span>
+                </h1>
+            </div>
+            <div class="header-actions">
+                <button id="novaCompraBtn" class="btn-primary">NOVA COMPRA</button>
+                <button id="baixarHistoricoBtn" class="btn-ghost btn-compact">⭳ Exportar histórico</button>
+            </div>
         </header>
 
         <div id="resumoGeral" class="resumo-geral">
@@ -49,6 +122,11 @@
                 </div>
 
                 <div class="form-group">
+                    <label for="quantidade">QUANTIDADE DE UNIDADES:</label>
+                    <input type="number" id="quantidade" min="1" value="1" required>
+                </div>
+
+                <div class="form-group">
                     <label for="parcelas">PARCELAS:</label>
                     <input type="number" id="parcelas" min="1" max="12" value="1" required>
                 </div>
@@ -58,12 +136,16 @@
                     <input type="date" id="dataCompra" required>
                 </div>
 
+                <div class="form-group">
+                    <label for="observacao">OBSERVAÇÃO (OPCIONAL):</label>
+                    <textarea id="observacao" placeholder="Digite observações sobre a compra..." rows="3"></textarea>
+                </div>
+
                 <button type="submit" class="btn-primary">FINALIZAR</button>
             </form>
         </div>
     </div>
 
-    <script src="script.js"></script>
     <!-- Modal Histórico de Compras -->
     <div id="modalHistorico" class="modal">
         <div class="modal-content">
@@ -82,5 +164,23 @@
             <div id="itensContainer" class="itens-modal-container"></div>
         </div>
     </div>
+
+    <!-- Modal Gastos Mensais da Categoria -->
+    <div id="modalMesesCategoria" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 id="tituloMesesCategoria">Gastos por mês</h2>
+            <div id="listaMesesCategoria" class="lista-meses-categoria"></div>
+        </div>
+    </div>
+
+    <div id="toastContainer" class="toast-container"></div>
+
+    <footer class="app-footer">
+        <span>© 2026 Controle de Investimentos • Uso interno</span>
+    </footer>
+
+    <script type="module" src="script.js"></script>
 </body>
+
 </html>
