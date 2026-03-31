@@ -79,18 +79,29 @@
     <div class="container">
         <header>
             <div class="header-main">
-                <h1><span class="app-title-main">Controle de Investimentos</span> <span
-                        class="app-title-badge">2026</span>
+                <h1>
+                    <span class="app-title-main">Controle de Investimentos</span>
+                    <select id="anoSelect" class="app-year-select">
+                        <option value="2025">2025</option>
+                        <option value="2026" selected>2026</option>
+                        <option value="2027">2027</option>
+                        <option value="2028">2028</option>
+                    </select>
                 </h1>
             </div>
             <div class="header-actions">
+                <button id="configBtn" class="btn-ghost btn-icon" title="Configurações de Categorias">⚙️</button>
+                <div class="search-container">
+                    <input type="text" id="searchMain" placeholder="Buscar categoria ou item...">
+                    <button id="clearSearch" class="btn-clear-search" title="Limpar busca">&times;</button>
+                </div>
+                <button id="btnSearch" class="btn-secondary btn-compact">Pesquisar</button>
                 <button id="novaCompraBtn" class="btn-primary">NOVA COMPRA</button>
-                <button id="baixarHistoricoBtn" class="btn-ghost btn-compact">⭳ Exportar histórico</button>
+                <button id="baixarHistoricoBtn" class="btn-secondary btn-compact">⭳ Exportar</button>
             </div>
         </header>
 
         <div id="resumoGeral" class="resumo-geral">
-            <h2>Resumo Geral</h2>
             <div id="resumoCards"></div>
         </div>
 
@@ -171,6 +182,20 @@
             <span class="close">&times;</span>
             <h2 id="tituloMesesCategoria">Gastos por mês</h2>
             <div id="listaMesesCategoria" class="lista-meses-categoria"></div>
+        </div>
+    </div>
+
+    <!-- Modal Configurações de Categorias -->
+    <div id="modalConfiguracoes" class="modal">
+        <div class="modal-content modal-large">
+            <span class="close">&times;</span>
+            <h2>Configurações de Categorias e Itens</h2>
+            <div class="modal-header-actions">
+                <p class="subtitle-modal">Ajuste nomes, orçamentos e gerencie a estrutura do ano.</p>
+                <button id="btnAddCategory" class="btn-secondary btn-compact">+ Nova Categoria</button>
+            </div>
+            <div id="configContainer" class="config-grid"></div>
+            <button id="btnSalvarConfig" class="btn-primary" style="margin-top: 20px;">SALVAR ALTERAÇÕES</button>
         </div>
     </div>
 

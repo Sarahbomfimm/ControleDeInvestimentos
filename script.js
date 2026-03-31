@@ -25,14 +25,13 @@ const auth = getAuth(app);
 
 // Firestore
 const db = getFirestore(app);
-const INVESTIMENTOS_DOC = doc(db, 'investimentos', '2026');
+let anoAtual = "2026";
 let dadosCache = null;
 let autenticado = false;
 let usuarioAtual = null;
 
-
 // Dados estruturados do sistema
-const CATEGORIAS = {
+let CATEGORIAS = {
     "AQUISIÇÃO DE EQUIPAMENTOS": {
         total: 68863.36,
         itens: {
@@ -144,6 +143,21 @@ const CATEGORIAS = {
     }
 };
 
+// Mapeamento de links das planilhas externas por categoria
+const LINKS_PLANILHAS = {
+    "MARKETING": "https://docs.google.com/spreadsheets/d/1Eg2QYIwgkSgHAUyN-lNos8wTICQ3mFTK/edit?gid=1272441978#gid=1272441978",
+    "AQUISIÇÃO DE EQUIPAMENTOS": "https://docs.google.com/spreadsheets/d/1Eg2QYIwgkSgHAUyN-lNos8wTICQ3mFTK/edit?gid=2009494167#gid=2009494167",
+    "OBRAS E REFORMAS": "https://docs.google.com/spreadsheets/d/1Eg2QYIwgkSgHAUyN-lNos8wTICQ3mFTK/edit?gid=436187973#gid=436187973",
+    "ENDOMARKETING": "https://docs.google.com/spreadsheets/d/1Eg2QYIwgkSgHAUyN-lNos8wTICQ3mFTK/edit?gid=1259421395#gid=1259421395",
+    "VIAGENS": "https://docs.google.com/spreadsheets/d/1Eg2QYIwgkSgHAUyN-lNos8wTICQ3mFTK/edit?gid=1358739941#gid=1358739941",
+    "SOFTWARE": "https://docs.google.com/spreadsheets/d/1Eg2QYIwgkSgHAUyN-lNos8wTICQ3mFTK/edit?gid=1565258358#gid=1565258358",
+    "Cursos e Treinamento": "https://docs.google.com/spreadsheets/d/1Eg2QYIwgkSgHAUyN-lNos8wTICQ3mFTK/edit?gid=1932966335#gid=1932966335",
+    "FARDAMENTO": "https://docs.google.com/spreadsheets/d/1Eg2QYIwgkSgHAUyN-lNos8wTICQ3mFTK/edit?gid=1380663968#gid=1380663968",
+    "CAMA, MESA E BANHO": "https://docs.google.com/spreadsheets/d/1Eg2QYIwgkSgHAUyN-lNos8wTICQ3mFTK/edit?gid=2091711132#gid=2091711132",
+    "Diversos": "https://docs.google.com/spreadsheets/d/1Eg2QYIwgkSgHAUyN-lNos8wTICQ3mFTK/edit?gid=424670382#gid=424670382",
+    "SOFIA (COMPRAS DIVERSAS)": "https://docs.google.com/spreadsheets/d/1Eg2QYIwgkSgHAUyN-lNos8wTICQ3mFTK/edit?gid=424670382#gid=424670382"
+};
+
 const MESES = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
 
 // Criar estrutura inicial a partir de CATEGORIAS
@@ -168,12 +182,20 @@ function criarEstruturaInicial() {
 // Inicialização dos dados no Firestore
 async function inicializarDados() {
     try {
-        const snap = await getDoc(INVESTIMENTOS_DOC);
+        const docRef = doc(db, 'investimentos', anoAtual);
+        const snap = await getDoc(docRef);
         if (snap.exists()) {
-            dadosCache = snap.data();
+            const data = snap.data();
+            dadosCache = data;
+            // Se houver configuração salva no banco, ela sobrepõe o CATEGORIAS hardcoded
+            if (data._config) {
+                CATEGORIAS = data._config;
+            }
         } else {
             const estrutura = criarEstruturaInicial();
-            await setDoc(INVESTIMENTOS_DOC, estrutura);
+            // Salva a estrutura inicial e a config base
+            estrutura._config = JSON.parse(JSON.stringify(CATEGORIAS));
+            await setDoc(docRef, estrutura);
             dadosCache = estrutura;
         }
     } catch (err) {
@@ -192,7 +214,11 @@ function carregarDados() {
 // Salvar dados (atualiza cache e envia para o Firestore)
 function salvarDados(dados) {
     dadosCache = dados;
-    setDoc(INVESTIMENTOS_DOC, dados).catch(err => {
+    // Garante que a configuração atual das categorias seja salva junto com os dados
+    dados._config = CATEGORIAS;
+    
+    const docRef = doc(db, 'investimentos', anoAtual);
+    setDoc(docRef, dados).catch(err => {
         console.error('Erro ao salvar dados no Firestore:', err);
     });
 }
@@ -209,6 +235,12 @@ function formatarMoeda(valor) {
 function parseMoeda(valor) {
     if (typeof valor === 'number') return valor;
     return parseFloat(valor.replace(/[^\d,]/g, '').replace(',', '.')) || 0;
+}
+
+// Centraliza a criação de datas para evitar problemas de fuso horário local
+function parseDataISO(dataStr) {
+    if (!dataStr) return new Date();
+    return new Date(dataStr + 'T00:00:00');
 }
 
 // Cálculo de gasto total por categoria
@@ -251,7 +283,7 @@ function recalcularMesesItem(info) {
             let mesInicio = compra.mesInicio;
             if (mesInicio === undefined || mesInicio === null) {
                 if (compra.data) {
-                    mesInicio = new Date(compra.data + 'T00:00:00').getMonth();
+                    mesInicio = parseDataISO(compra.data).getMonth();
                 } else {
                     mesInicio = 0;
                 }
@@ -392,7 +424,7 @@ function aplicarCompraEmDados(dados, categoria, produto, valor, parcelas, dataCo
         };
     }
 
-    const data = new Date(dataCompra + 'T00:00:00');
+    const data = parseDataISO(dataCompra);
     const mesInicio = data.getMonth();
     const valorParcela = valor / parcelas;
 
@@ -537,24 +569,44 @@ function renderizarResumoGeral() {
             ` : ''}
         `;
 
-        card.addEventListener('click', () => {
+        // Clique único: Scroll + Flash
+        card.addEventListener('click', (e) => {
             const alvo = document.getElementById(sectionId);
             if (alvo) {
                 alvo.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                alvo.classList.add('highlight-flash');
+                setTimeout(() => alvo.classList.remove('highlight-flash'), 2000);
             }
+        });
+
+        // Clique duplo: Abrir Modal de Itens
+        card.addEventListener('dblclick', () => {
+            abrirItensCategoria(categoria);
         });
 
         resumoContainer.appendChild(card);
     }
 }
 
-// Renderizar categorias e itens
-function renderizarCategorias() {
+// Renderizar categorias filtradas
+window.renderizarCategorias = function(filtro = '') {
     const dados = carregarDados();
     const container = document.getElementById('categoriasContainer');
     container.innerHTML = '';
 
+    const filtroNorm = filtro.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
     for (const [categoria, dados_categoria] of Object.entries(CATEGORIAS)) {
+        if (categoria === '_config') continue;
+
+        const itensPlanejados = Object.keys(dados_categoria.itens || {}).join(' ').toLowerCase();
+        const itensComprados = dados[categoria] ? Object.keys(dados[categoria]).join(' ').toLowerCase() : '';
+        const stringBusca = (categoria + ' ' + itensPlanejados + ' ' + itensComprados).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+        if (filtro && !stringBusca.includes(filtroNorm)) {
+            continue;
+        }
+
         const section = document.createElement('div');
         section.className = 'categoria-section';
         section.id = 'categoria-' + slugCategoria(categoria);
@@ -569,10 +621,14 @@ function renderizarCategorias() {
 
         const orcamentoCategoria = dados_categoria.total;
         const disponivelCategoria = orcamentoCategoria !== null ? orcamentoCategoria - gastoCategoria : null;
+        const linkPlanilha = LINKS_PLANILHAS[categoria] || "#";
 
         section.innerHTML = `
             <div class="categoria-header">
                 <h2>${categoria}</h2>
+                ${linkPlanilha !== "#" ? `
+                    <a href="${linkPlanilha}" target="_blank" class="btn-print-link" title="Abrir planilha da categoria">🖨️</a>
+                ` : ''}
             </div>
             <div class="categoria-totais">
                 <div class="total-item">
@@ -662,7 +718,7 @@ function renderizarItens(categoria, dados) {
                         ${dadosItem.compras.map((compra, index) => `
                             <div class="compra-item">
                                 <div class="compra-main">
-                                    ${new Date(compra.data + 'T00:00:00').toLocaleDateString('pt-BR')} - 
+                                    ${parseDataISO(compra.data).toLocaleDateString('pt-BR')} - 
                                     ${formatarMoeda(compra.valor)} em ${compra.parcelas}x de ${formatarMoeda(compra.valorParcela)} - ${compra.item || item}
                                     ${compra.quantidade ? ` • ${compra.quantidade} un.` : ''}
                                     ${compra.observacao ? `<br><em style="font-size: 0.9em; color: #666;">Obs: ${compra.observacao}</em>` : ''}
@@ -705,7 +761,7 @@ window.abrirHistorico = function (categoria, item) {
     } else {
         const ordenadas = [...compras].sort((a, b) => new Date(b.data) - new Date(a.data));
         historicoLista.innerHTML = ordenadas.map(compra => {
-            const dataFmt = new Date(compra.data + 'T00:00:00').toLocaleDateString('pt-BR');
+            const dataFmt = parseDataISO(compra.data).toLocaleDateString('pt-BR');
             return `
                 <div class="historico-item">
                     ${dataFmt} - ${formatarMoeda(compra.valor)} em ${compra.parcelas}x de ${formatarMoeda(compra.valorParcela)} - ${compra.item || item}
@@ -838,6 +894,130 @@ window.abrirItensCategoria = function (categoria) {
     modalItens.style.display = 'block';
 }
 
+// --- SISTEMA DE CONFIGURAÇÃO DE CATEGORIAS ---
+
+window.abrirConfiguracoes = function() {
+    const modal = document.getElementById('modalConfiguracoes');
+    const container = document.getElementById('configContainer');
+    container.innerHTML = '';
+
+    for (const [catNome, catDados] of Object.entries(CATEGORIAS)) {
+        if (catNome === '_config') continue;
+        
+        const catBlock = document.createElement('div');
+        catBlock.className = 'config-category-block';
+        catBlock.dataset.id = catNome;
+        catBlock.innerHTML = `
+            <button class="btn-remove-block" title="Remover Categoria" onclick="this.parentElement.remove()">×</button>
+            <div class="config-row">
+                <div class="form-group">
+                    <label>Nome da Categoria</label>
+                    <input type="text" class="cfg-cat-name" data-orig="${catNome}" value="${catNome}" placeholder="Ex: Marketing">
+                </div>
+                <div class="form-group">
+                    <label>Orçamento Total</label>
+                    <input type="number" step="0.01" class="cfg-cat-total" value="${catDados.total || 0}">
+                </div>
+            </div>
+            <div class="config-items-list" id="items-list-${slugCategoria(catNome)}">
+                <label style="font-size: 0.8rem; color: var(--muted);">Subcategorias (Itens Planejados):</label>
+                ${Object.entries(catDados.itens || {}).map(([itemName, itemVal]) => `
+                    <div class="config-item-row">
+                        <input type="text" class="cfg-item-name" data-orig="${itemName}" value="${itemName}" placeholder="Nome do item">
+                        <input type="number" step="0.01" class="cfg-item-val" value="${itemVal || 0}" placeholder="Valor orçado">
+                        <button class="btn-remove-block" style="position:static; width:24px; height:24px; font-size:0.9rem;" onclick="this.parentElement.remove()">×</button>
+                    </div>
+                `).join('')}
+            </div>
+            <button class="btn-add-sub" onclick="window.adicionarItemUI('${slugCategoria(catNome)}')">+ Adicionar Subcategoria</button>
+        `;
+        container.appendChild(catBlock);
+    }
+    modal.style.display = 'block';
+};
+
+window.adicionarCategoriaUI = function() {
+    const container = document.getElementById('configContainer');
+    const tempId = 'nova-' + Date.now();
+    const catBlock = document.createElement('div');
+    catBlock.className = 'config-category-block';
+    catBlock.innerHTML = `
+        <button class="btn-remove-block" onclick="this.parentElement.remove()">×</button>
+        <div class="config-row">
+            <div class="form-group"><label>Nome da Categoria</label><input type="text" class="cfg-cat-name" value="" placeholder="Nova Categoria"></div>
+            <div class="form-group"><label>Orçamento Total</label><input type="number" step="0.01" class="cfg-cat-total" value="0"></div>
+        </div>
+        <div class="config-items-list" id="items-list-${tempId}"><label style="font-size: 0.8rem; color: var(--muted);">Subcategorias:</label></div>
+        <button class="btn-add-sub" onclick="window.adicionarItemUI('${tempId}')">+ Adicionar Subcategoria</button>
+    `;
+    container.appendChild(catBlock);
+};
+
+window.adicionarItemUI = function(containerId) {
+    const list = document.getElementById('items-list-' + containerId);
+    const div = document.createElement('div');
+    div.className = 'config-item-row';
+    div.innerHTML = `
+        <input type="text" class="cfg-item-name" value="" placeholder="Nome do item">
+        <input type="number" step="0.01" class="cfg-item-val" value="0">
+        <button class="btn-remove-block" style="position:static; width:24px; height:24px; font-size:0.9rem;" onclick="this.parentElement.remove()">×</button>
+    `;
+    list.appendChild(div);
+};
+
+document.getElementById('btnAddCategory')?.addEventListener('click', () => {
+    window.adicionarCategoriaUI();
+});
+
+document.getElementById('btnSalvarConfig')?.addEventListener('click', () => {
+    const novosDados = carregarDados();
+    const novaCATEGORIAS = {};
+
+    document.querySelectorAll('.config-category-block').forEach(block => {
+        const inputCat = block.querySelector('.cfg-cat-name');
+        const inputTotal = block.querySelector('.cfg-cat-total');
+        const nomeOriginalCat = inputCat.dataset.orig;
+        const nomeNovoCat = inputCat.value.trim();
+        const novoTotal = parseFloat(inputTotal.value) || 0;
+
+        novaCATEGORIAS[nomeNovoCat] = {
+            total: novoTotal,
+            itens: {}
+        };
+
+        // Se o nome da categoria mudou, precisamos migrar os dados no cache
+        if (nomeNovoCat !== nomeOriginalCat && novosDados[nomeOriginalCat]) {
+            novosDados[nomeNovoCat] = novosDados[nomeOriginalCat];
+            delete novosDados[nomeOriginalCat];
+        }
+
+        block.querySelectorAll('.cfg-item-name').forEach(itemInput => {
+            const nomeOriginalItem = itemInput.dataset.orig;
+            const nomeNovoItem = itemInput.value.trim();
+            const valorOriginal = CATEGORIAS[nomeOriginalCat].itens[nomeOriginalItem];
+
+            novaCATEGORIAS[nomeNovoCat].itens[nomeNovoItem] = valorOriginal;
+
+            // Se o nome do item mudou, migra os dados das compras
+            if (nomeNovoItem !== nomeOriginalItem && novosDados[nomeNovoCat]?.[nomeOriginalItem]) {
+                novosDados[nomeNovoCat][nomeNovoItem] = novosDados[nomeNovoCat][nomeOriginalItem];
+                delete novosDados[nomeNovoCat][nomeOriginalItem];
+            }
+        });
+    });
+
+    CATEGORIAS = novaCATEGORIAS;
+    salvarDados(novosDados);
+    
+    fecharModal(document.getElementById('modalConfiguracoes'));
+    toastSuccess('Configurações Salvas', 'As categorias e itens foram atualizados com sucesso.');
+    atualizarInterface();
+});
+
+document.getElementById('configBtn')?.addEventListener('click', () => {
+    abrirConfiguracoes();
+});
+
 // Abrir modal com gastos mensais da categoria
 window.abrirMesesCategoria = function (categoria) {
     const dados = carregarDados();
@@ -868,105 +1048,22 @@ function csvEsc(texto) {
     return `"${s}"`;
 }
 
-// Gerar e baixar CSV com todo o histórico de compras
-function gerarCSVHistorico() {
-    const dados = carregarDados();
+// Função auxiliar para extrair linhas de compras para o CSV
+function extrairLinhasCompras(itens, categoriaNome) {
     const linhas = [];
-
-    linhas.push('Categoria;Item;Nome da Compra;Data da Compra;Mês da Compra;Valor Total;Parcelas;Valor da Parcela;Quantidade');
-
-    let temCompras = false;
-
-    for (const [categoria, itens] of Object.entries(dados)) {
-        for (const [itemNome, info] of Object.entries(itens)) {
-            if (!Array.isArray(info.compras)) continue;
-
-            for (const compra of info.compras) {
-                temCompras = true;
-
-                const nomeCompra = compra.item || itemNome;
-                const data = compra.data || '';
-                const dataObj = compra.data ? new Date(compra.data + 'T00:00:00') : null;
-                const mesCompra = dataObj ? MESES[dataObj.getMonth()] : '';
-                const valorTotal = (compra.valor !== null && compra.valor !== undefined)
-                    ? compra.valor.toFixed(2).replace('.', ',')
-                    : '';
-                const valorParcela = (compra.valorParcela !== null && compra.valorParcela !== undefined)
-                    ? compra.valorParcela.toFixed(2).replace('.', ',')
-                    : '';
-                const quantidade = compra.quantidade ?? 1;
-
-                const linha = [
-                    csvEsc(categoria),
-                    csvEsc(itemNome),
-                    csvEsc(nomeCompra),
-                    csvEsc(data),
-                    csvEsc(mesCompra),
-                    valorTotal,
-                    compra.parcelas ?? '',
-                    valorParcela,
-                    quantidade
-                ].join(';');
-
-                linhas.push(linha);
-            }
-        }
-    }
-
-    if (!temCompras) {
-        toastWarning('Nada para exportar', 'Nenhuma compra registrada para gerar o histórico completo.');
-        return;
-    }
-
-    const csv = linhas.join('\n');
-    const bom = '\uFEFF';
-    const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'historico_compras_2026.csv';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-}
-
-// Gerar e baixar CSV apenas de uma categoria
-function gerarCSVHistoricoCategoria(categoriaAlvo) {
-    const dados = carregarDados();
-    const itens = dados[categoriaAlvo];
-
-    if (!itens) {
-        toastWarning('Categoria vazia', 'Esta categoria ainda não possui dados para exportar.');
-        return;
-    }
-
-    const linhas = [];
-    linhas.push('Categoria;Item;Nome da Compra;Data da Compra;Mês da Compra;Valor Total;Parcelas;Valor da Parcela;Quantidade');
-
-    let temCompras = false;
-
     for (const [itemNome, info] of Object.entries(itens)) {
         if (!Array.isArray(info.compras)) continue;
-
         for (const compra of info.compras) {
-            temCompras = true;
-
             const nomeCompra = compra.item || itemNome;
             const data = compra.data || '';
-            const dataObj = compra.data ? new Date(compra.data + 'T00:00:00') : null;
+            const dataObj = compra.data ? parseDataISO(compra.data) : null;
             const mesCompra = dataObj ? MESES[dataObj.getMonth()] : '';
-            const valorTotal = (compra.valor !== null && compra.valor !== undefined)
-                ? compra.valor.toFixed(2).replace('.', ',')
-                : '';
-            const valorParcela = (compra.valorParcela !== null && compra.valorParcela !== undefined)
-                ? compra.valorParcela.toFixed(2).replace('.', ',')
-                : '';
+            const valorTotal = (compra.valor || 0).toFixed(2).replace('.', ',');
+            const valorParcela = (compra.valorParcela || 0).toFixed(2).replace('.', ',');
             const quantidade = compra.quantidade ?? 1;
 
             const linha = [
-                csvEsc(categoriaAlvo),
+                csvEsc(categoriaNome),
                 csvEsc(itemNome),
                 csvEsc(nomeCompra),
                 csvEsc(data),
@@ -980,20 +1077,55 @@ function gerarCSVHistoricoCategoria(categoriaAlvo) {
             linhas.push(linha);
         }
     }
+    return linhas;
+}
 
-    if (!temCompras) {
+// Gerar e baixar CSV com todo o histórico de compras
+function gerarCSVHistorico() {
+    const dados = carregarDados();
+    let todasAsLinhas = [];
+    const cabecalho = 'Categoria;Item;Nome da Compra;Data da Compra;Mês da Compra;Valor Total;Parcelas;Valor da Parcela;Quantidade';
+
+    for (const [categoria, itens] of Object.entries(dados)) {
+        todasAsLinhas = todasAsLinhas.concat(extrairLinhasCompras(itens, categoria));
+    }
+
+    if (todasAsLinhas.length === 0) {
+        toastWarning('Nada para exportar', 'Nenhuma compra registrada para gerar o histórico completo.');
+        return;
+    }
+
+    downloadCSV('historico_compras_2026.csv', [cabecalho, ...todasAsLinhas].join('\n'));
+}
+
+// Gerar e baixar CSV apenas de uma categoria
+function gerarCSVHistoricoCategoria(categoriaAlvo) {
+    const dados = carregarDados();
+    const itens = dados[categoriaAlvo];
+
+    if (!itens) {
+        toastWarning('Categoria vazia', 'Esta categoria ainda não possui dados para exportar.');
+        return;
+    }
+
+    const cabecalho = 'Categoria;Item;Nome da Compra;Data da Compra;Mês da Compra;Valor Total;Parcelas;Valor da Parcela;Quantidade';
+    const linhas = extrairLinhasCompras(itens, categoriaAlvo);
+
+    if (linhas.length === 0) {
         toastWarning('Nada para exportar', 'Nenhuma compra registrada nesta categoria para gerar o histórico.');
         return;
     }
 
-    const csv = linhas.join('\n');
-    const bom = '\uFEFF';
-    const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
+    downloadCSV(`historico_${categoriaAlvo.replace(/[^a-z0-9]+/gi, '_').toLowerCase()}_2026.csv`, [cabecalho, ...linhas].join('\n'));
+}
 
+function downloadCSV(filename, content) {
+    const bom = '\uFEFF';
+    const blob = new Blob([bom + content], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `historico_${categoriaAlvo.replace(/[^a-z0-9]+/gi, '_').toLowerCase()}_2026.csv`;
+    link.download = filename;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1092,6 +1224,41 @@ document.getElementById('categoria').addEventListener('change', function () {
     const categoria = this.value;
     document.getElementById('produto').value = '';
     preencherProdutos(categoria);
+});
+
+// Controle da busca e botão limpar
+const inputBusca = document.getElementById('searchMain');
+const btnLimparBusca = document.getElementById('clearSearch');
+const btnSearch = document.getElementById('btnSearch');
+
+function executarBusca() {
+    const termo = inputBusca.value;
+    renderizarCategorias(termo);
+}
+
+btnSearch?.addEventListener('click', executarBusca);
+
+inputBusca?.addEventListener('input', (e) => {
+    const termo = e.target.value;
+    btnLimparBusca.classList.toggle('active', termo.length > 0);
+});
+
+btnLimparBusca?.addEventListener('click', () => {
+    inputBusca.value = '';
+    btnLimparBusca.classList.remove('active');
+    renderizarCategorias('');
+});
+
+// Troca de Ano
+document.getElementById('anoSelect')?.addEventListener('change', async (e) => {
+    anoAtual = e.target.value;
+    const loadingScreen = document.getElementById('loadingScreen');
+    loadingScreen?.classList.add('active');
+    
+    await inicializarDados();
+    atualizarInterface();
+    
+    setTimeout(() => loadingScreen?.classList.remove('active'), 800);
 });
 
 // Formatar campo de valor
