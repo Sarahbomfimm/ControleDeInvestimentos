@@ -980,28 +980,49 @@ document.getElementById('btnSalvarConfig')?.addEventListener('click', () => {
         const nomeNovoCat = inputCat.value.trim();
         const novoTotal = parseFloat(inputTotal.value) || 0;
 
+        if (!nomeNovoCat) return;
+
         novaCATEGORIAS[nomeNovoCat] = {
             total: novoTotal,
             itens: {}
         };
 
         // Se o nome da categoria mudou, precisamos migrar os dados no cache
-        if (nomeNovoCat !== nomeOriginalCat && novosDados[nomeOriginalCat]) {
+        if (nomeOriginalCat && nomeNovoCat !== nomeOriginalCat && novosDados[nomeOriginalCat]) {
             novosDados[nomeNovoCat] = novosDados[nomeOriginalCat];
             delete novosDados[nomeOriginalCat];
         }
 
-        block.querySelectorAll('.cfg-item-name').forEach(itemInput => {
-            const nomeOriginalItem = itemInput.dataset.orig;
-            const nomeNovoItem = itemInput.value.trim();
-            const valorOriginal = CATEGORIAS[nomeOriginalCat].itens[nomeOriginalItem];
+        if (!novosDados[nomeNovoCat]) novosDados[nomeNovoCat] = {};
 
-            novaCATEGORIAS[nomeNovoCat].itens[nomeNovoItem] = valorOriginal;
+        // Iterar sobre as linhas de itens para capturar nome e valor corretamente
+        block.querySelectorAll('.config-item-row').forEach(itemRow => {
+            const nameInput = itemRow.querySelector('.cfg-item-name');
+            const valInput = itemRow.querySelector('.cfg-item-val');
 
-            // Se o nome do item mudou, migra os dados das compras
-            if (nomeNovoItem !== nomeOriginalItem && novosDados[nomeNovoCat]?.[nomeOriginalItem]) {
+            const nomeNovoItem = nameInput.value.trim();
+            if (!nomeNovoItem) return;
+
+            const nomeOriginalItem = nameInput.dataset.orig;
+            const novoValorItem = parseFloat(valInput.value) || 0;
+
+            novaCATEGORIAS[nomeNovoCat].itens[nomeNovoItem] = novoValorItem;
+
+            // Migração de dados de compras se o item foi renomeado
+            if (nomeOriginalItem && nomeNovoItem !== nomeOriginalItem && novosDados[nomeNovoCat][nomeOriginalItem]) {
                 novosDados[nomeNovoCat][nomeNovoItem] = novosDados[nomeNovoCat][nomeOriginalItem];
                 delete novosDados[nomeNovoCat][nomeOriginalItem];
+            }
+
+            // Atualiza o limite (valor orçado) no cache de dados
+            if (novosDados[nomeNovoCat][nomeNovoItem]) {
+                novosDados[nomeNovoCat][nomeNovoItem].limite = novoValorItem;
+            } else {
+                novosDados[nomeNovoCat][nomeNovoItem] = {
+                    limite: novoValorItem,
+                    meses: Array(12).fill(0),
+                    compras: []
+                };
             }
         });
     });
