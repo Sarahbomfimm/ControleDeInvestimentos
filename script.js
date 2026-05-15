@@ -1788,6 +1788,9 @@ document.addEventListener('DOMContentLoaded', async function () {
     btnSidebarToggle?.addEventListener('click', alternarSidebar);
     atualizarEstadoSidebar(false);
 
+    // Render base cards immediately so the homepage is not visually empty.
+    atualizarInterface();
+
     inicializarPainelUsuario();
     let sessaoInicialCarregada = false;
 

@@ -1485,14 +1485,6 @@ body.layout-resumo-only #categoriasContainer {
     display: none;
 }
 
-body.sidebar-collapsed #categoriasContainer {
-    display: none;
-}
-
-body.home-clean #categoriasContainer {
-    display: none;
-}
-
 
 .categoria-section {
     margin-bottom: 32px;
