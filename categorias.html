@@ -1,0 +1,1431 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Categorias | Controle de Investimentos</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #020617;
+            --stroke: rgba(255, 255, 255, 0.08);
+            --text: #f8fafc;
+            --muted: #94a3b8;
+            --primary: #22d3ee;
+            --danger: #f87171;
+            --success: #4ade80;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            min-height: 100vh;
+            font-family: 'Manrope', 'Segoe UI', sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(at 0% 0%, rgba(34, 211, 238, 0.07) 0px, transparent 52%),
+                radial-gradient(at 100% 0%, rgba(14, 165, 233, 0.06) 0px, transparent 54%),
+                var(--bg);
+            padding: 24px;
+        }
+
+        .page-wrap {
+            max-width: 1120px;
+            margin: 0 auto;
+            min-height: calc(100vh - 48px);
+        }
+
+        .page-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .page-header button {
+            position: absolute;
+            left: 0;
+        }
+
+        .page-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .back-btn,
+        .secondary-btn {
+            border: 1px solid var(--stroke);
+            color: var(--muted);
+            border-radius: 10px;
+            padding: 8px 14px;
+            font-size: 0.86rem;
+            font-family: inherit;
+            background: rgba(15, 23, 42, 0.7);
+            cursor: pointer;
+            transition: color 0.15s, border-color 0.15s;
+        }
+
+        .back-btn:hover,
+        .secondary-btn:hover {
+            color: var(--text);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .menu-screen {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 18px;
+            max-width: 820px;
+            margin: 110px auto 0;
+        }
+
+        .menu-card {
+            border: 1px solid rgba(34, 211, 238, 0.22);
+            border-radius: 18px;
+            background:
+                radial-gradient(circle at top right, rgba(34, 211, 238, 0.16), transparent 60%),
+                linear-gradient(165deg, rgba(15, 23, 42, 0.94), rgba(2, 6, 23, 0.92));
+            backdrop-filter: blur(12px);
+            padding: 18px 20px;
+            min-height: 170px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            text-align: left;
+            color: var(--text);
+            cursor: pointer;
+            transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+        }
+
+        .menu-card:hover {
+            transform: translateY(-3px);
+            border-color: rgba(34, 211, 238, 0.55);
+            box-shadow: 0 14px 32px rgba(6, 24, 45, 0.55);
+        }
+
+        .menu-card h2 {
+            font-size: 1.08rem;
+            margin-bottom: 12px;
+            color: #f8fafc;
+            letter-spacing: 0.01em;
+            font-weight: 700;
+        }
+
+        .menu-card .icon {
+            font-size: 2.4rem;
+            margin-bottom: 10px;
+            opacity: 0.92;
+        }
+
+        .panel {
+            width: min(620px, 100%);
+            border: 1px solid var(--stroke);
+            border-radius: 20px;
+            background: rgba(15, 23, 42, 0.74);
+            backdrop-filter: blur(12px);
+            padding: 30px;
+        }
+
+        #createScreen {
+            min-height: calc(100vh - 130px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .panel-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: var(--text);
+        }
+
+        .panel-actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.74rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 7px;
+        }
+
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--stroke);
+            border-radius: 10px;
+            color: var(--text);
+            font-family: inherit;
+            font-size: 0.95rem;
+            padding: 11px 14px;
+            outline: none;
+            transition: border-color 0.15s;
+            appearance: none;
+        }
+
+        .form-group select option {
+            background: #0f172a;
+            color: var(--text);
+        }
+
+        .form-group select:focus,
+        .form-group input:focus {
+            border-color: rgba(34, 211, 238, 0.5);
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 13px;
+            border-radius: 10px;
+            border: none;
+            background: linear-gradient(135deg, #0ea5e9, #22d3ee);
+            color: #f8fafc;
+            font-family: inherit;
+            font-size: 0.95rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            transition: opacity 0.15s, transform 0.15s;
+            margin-top: 8px;
+        }
+
+        .btn-submit:hover {
+            opacity: 0.88;
+            transform: translateY(-1px);
+        }
+
+        .btn-submit:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-delete {
+            width: 100%;
+            padding: 13px;
+            border-radius: 10px;
+            border: none;
+            background: linear-gradient(135deg, #f87171, #dc2626);
+            color: #f8fafc;
+            font-family: inherit;
+            font-size: 0.95rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            transition: opacity 0.15s, transform 0.15s;
+            margin-top: 8px;
+        }
+
+        .btn-delete:hover {
+            opacity: 0.88;
+            transform: translateY(-1px);
+        }
+
+        .btn-delete:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .feedback {
+            margin-top: 14px;
+            border-radius: 10px;
+            padding: 12px 14px;
+            font-size: 0.9rem;
+            display: none;
+        }
+
+        .feedback.success {
+            background: rgba(74, 222, 128, 0.08);
+            border: 1px solid rgba(74, 222, 128, 0.25);
+            color: var(--success);
+            display: block;
+        }
+
+        .feedback.error {
+            background: rgba(248, 113, 113, 0.08);
+            border: 1px solid rgba(248, 113, 113, 0.25);
+            color: var(--danger);
+            display: block;
+        }
+
+        .auth-guard {
+            text-align: center;
+            padding: 40px 0;
+            color: var(--muted);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid var(--stroke);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 16px;
+        }
+
+        .modal-message {
+            font-size: 0.95rem;
+            color: var(--muted);
+            margin-bottom: 32px;
+            line-height: 1.5;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .modal-btn {
+            padding: 11px 24px;
+            border: none;
+            border-radius: 10px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            transition: opacity 0.15s, transform 0.15s;
+            flex: 1;
+        }
+
+        .modal-btn-cancel {
+            background: rgba(148, 163, 184, 0.1);
+            border: 1px solid var(--stroke);
+            color: var(--muted);
+        }
+
+        .modal-btn-cancel:hover {
+            color: var(--text);
+            border-color: rgba(255, 255, 255, 0.2);
+            opacity: 0.9;
+        }
+
+        .modal-btn-confirm {
+            background: linear-gradient(135deg, #f87171, #dc2626);
+            color: #f8fafc;
+        }
+
+        .modal-btn-confirm:hover {
+            opacity: 0.88;
+            transform: translateY(-1px);
+        }
+
+        .modal-btn-confirm:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        @media (max-width: 900px) {
+            .menu-screen {
+                grid-template-columns: 1fr;
+            }
+
+            .menu-card {
+                min-height: 220px;
+            }
+        }
+
+        .year-selector {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 18px;
+            max-width: 500px;
+            margin: 80px auto 0;
+        }
+
+        .year-card {
+            border: 1px solid rgba(34, 211, 238, 0.22);
+            border-radius: 18px;
+            background:
+                radial-gradient(circle at top right, rgba(34, 211, 238, 0.16), transparent 60%),
+                linear-gradient(165deg, rgba(15, 23, 42, 0.94), rgba(2, 6, 23, 0.92));
+            backdrop-filter: blur(12px);
+            padding: 40px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .year-card:hover {
+            transform: translateY(-3px);
+            border-color: rgba(34, 211, 238, 0.55);
+            box-shadow: 0 14px 32px rgba(6, 24, 45, 0.55);
+        }
+
+        .categories-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+            margin-top: 20px;
+        }
+
+        .search-box {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .search-input {
+            flex: 1;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--stroke);
+            border-radius: 10px;
+            color: var(--text);
+            font-family: inherit;
+            font-size: 0.95rem;
+            padding: 11px 14px;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+
+        .search-input:focus {
+            border-color: rgba(34, 211, 238, 0.5);
+        }
+
+        .search-input::placeholder {
+            color: var(--muted);
+        }
+
+        .category-card {
+            border: 1px solid var(--stroke);
+            border-radius: 16px;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(12px);
+            padding: 16px;
+            position: relative;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
+        .category-card:hover {
+            border-color: rgba(34, 211, 238, 0.4);
+            box-shadow: 0 8px 24px rgba(34, 211, 238, 0.1);
+        }
+
+        .category-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .category-name {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--primary);
+            flex: 1;
+        }
+
+        .category-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .action-btn {
+            width: 28px;
+            height: 28px;
+            border: 1px solid var(--stroke);
+            border-radius: 6px;
+            background: rgba(15, 23, 42, 0.8);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            transition: all 0.15s;
+            color: var(--text);
+            flex-shrink: 0;
+        }
+
+        .action-btn:hover {
+            background: rgba(34, 211, 238, 0.15);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .action-btn.delete:hover {
+            background: rgba(248, 113, 113, 0.15);
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        .toggle-expand {
+            width: 24px;
+            height: 24px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            border: none;
+            background: transparent;
+            color: var(--muted);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .toggle-expand.expanded {
+            transform: rotate(180deg);
+        }
+
+        .subcategories-container {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .subcategories-container.expanded {
+            max-height: 500px;
+        }
+
+        .subcategory-item {
+            padding: 10px 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .subcategory-item:first-child {
+            border-top: none;
+            padding-top: 8px;
+        }
+
+        .subcategory-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .subcategory-name {
+            font-size: 0.85rem;
+            color: var(--text);
+            word-break: break-word;
+        }
+
+        .subcategory-value {
+            font-size: 0.8rem;
+            color: var(--muted);
+            font-weight: 600;
+        }
+
+        .subcategory-actions {
+            display: flex;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+
+        .subcategory-btn {
+            width: 22px;
+            height: 22px;
+            border: 1px solid var(--stroke);
+            border-radius: 4px;
+            background: rgba(15, 23, 42, 0.8);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            transition: all 0.15s;
+            color: var(--text);
+        }
+
+        .subcategory-btn:hover {
+            background: rgba(34, 211, 238, 0.15);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .subcategory-btn.delete:hover {
+            background: rgba(248, 113, 113, 0.15);
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        .no-results {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--muted);
+        }
+
+        .edit-form-container {
+            min-height: calc(100vh - 130px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .edit-form-panel {
+            width: min(600px, 100%);
+            border: 1px solid var(--stroke);
+            border-radius: 20px;
+            background: rgba(15, 23, 42, 0.74);
+            backdrop-filter: blur(12px);
+            padding: 30px;
+        }
+
+        .edit-form-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .edit-field {
+            margin-bottom: 20px;
+        }
+
+        .edit-field-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .edit-field-input {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--stroke);
+            border-radius: 10px;
+            color: var(--text);
+            font-family: inherit;
+            font-size: 0.95rem;
+            padding: 11px 14px;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+
+        .edit-field-input:focus {
+            border-color: rgba(34, 211, 238, 0.5);
+        }
+
+        .edit-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 28px;
+        }
+
+        .btn-save-edit {
+            flex: 1;
+            padding: 13px;
+            border-radius: 10px;
+            border: none;
+            background: linear-gradient(135deg, #0ea5e9, #22d3ee);
+            color: #f8fafc;
+            font-family: inherit;
+            font-size: 0.95rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            transition: opacity 0.15s, transform 0.15s;
+        }
+
+        .btn-save-edit:hover {
+            opacity: 0.88;
+            transform: translateY(-1px);
+        }
+
+        .btn-save-edit:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-delete-item {
+            flex: 1;
+            padding: 13px;
+            border-radius: 10px;
+            border: none;
+            background: linear-gradient(135deg, #f87171, #dc2626);
+            color: #f8fafc;
+            font-family: inherit;
+            font-size: 0.95rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            transition: opacity 0.15s, transform 0.15s;
+        }
+
+        .btn-delete-item:hover {
+            opacity: 0.88;
+            transform: translateY(-1px);
+        }
+
+        .btn-delete-item:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .edit-feedback {
+            margin-top: 14px;
+            border-radius: 10px;
+            padding: 12px 14px;
+            font-size: 0.9rem;
+            display: none;
+        }
+
+        .edit-feedback.success {
+            background: rgba(74, 222, 128, 0.08);
+            border: 1px solid rgba(74, 222, 128, 0.25);
+            color: var(--success);
+            display: block;
+        }
+
+        .edit-feedback.error {
+            background: rgba(248, 113, 113, 0.08);
+            border: 1px solid rgba(248, 113, 113, 0.25);
+            color: var(--danger);
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page-wrap">
+        <div class="page-header">
+            <button id="goHomeBtn" class="back-btn" type="button">Voltar</button>
+            <h1 class="page-title">Categorias</h1>
+        </div>
+
+        <div id="authGuard" class="auth-guard hidden">
+            <p>Você precisa estar autenticado para acessar esta página.</p>
+        </div>
+
+        <section id="menuScreen" class="menu-screen hidden">
+            <button id="openCreateBtn" class="menu-card" type="button">
+                <div class="icon">+</div>
+                <h2>Criar nova categoria</h2>
+            </button>
+            <button id="openEditBtn" class="menu-card" type="button">
+                <div class="icon">✎</div>
+                <h2>Editar categoria</h2>
+            </button>
+        </section>
+
+        <section id="createScreen" class="hidden">
+            <div class="panel">
+                <h2 class="panel-title">Criar nova categoria</h2>
+                <form id="formCriarCategoria">
+                    <div class="form-group">
+                        <label for="anoCategoria">Ano</label>
+                        <select id="anoCategoria" required>
+                            <option value="2025">2025</option>
+                            <option value="2026" selected>2026</option>
+                            <option value="2027">2027</option>
+                            <option value="2028">2028</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="nomeCategoria">Nome da Categoria</label>
+                        <input type="text" id="nomeCategoria" placeholder="Ex: EQUIPAMENTOS DE COZINHA" autocomplete="off" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="nomeSubcategoria">Nome da Subcategoria</label>
+                        <input type="text" id="nomeSubcategoria" placeholder="Opcional (se vazio, usa o nome da categoria)" autocomplete="off">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="valorOrcado">Valor Orçado</label>
+                        <input type="text" id="valorOrcado" placeholder="R$ 0,00" inputmode="numeric" autocomplete="off" required>
+                    </div>
+
+                    <button type="submit" class="btn-submit" id="btnCriar">CRIAR CATEGORIA</button>
+                    <div id="feedbackCreate" class="feedback"></div>
+                </form>
+            </div>
+        </section>
+
+        <!-- Seleção de Ano para Editar -->
+        <section id="selectYearScreen" class="hidden">
+            <div class="year-selector" id="yearSelector"></div>
+        </section>
+
+        <!-- Lista de Categorias -->
+        <section id="categoriesListScreen" class="hidden">
+            <div style="margin-bottom: 20px;">
+                <h2 class="panel-title" id="yearTitle">Categorias de 2026</h2>
+            </div>
+            <div class="search-box">
+                <input type="text" id="searchCategories" class="search-input" placeholder="Buscar categoria ou subcategoria...">
+            </div>
+            <div class="categories-list" id="categoriesList"></div>
+        </section>
+
+        <!-- Editar Item -->
+        <section id="editItemScreen" class="hidden">
+            <div class="edit-form-container">
+                <div class="edit-form-panel">
+                    <div class="edit-form-title">
+                        <span id="editItemLabel">Editar Item</span>
+                    </div>
+
+                    <div class="edit-field">
+                        <label class="edit-field-label">Categoria</label>
+                        <input type="text" id="editCategoryName" class="edit-field-input" disabled>
+                    </div>
+
+                    <div class="edit-field">
+                        <label class="edit-field-label">Nome da Subcategoria</label>
+                        <input type="text" id="editSubcategoryName" class="edit-field-input" placeholder="Deixe em branco para não alterar">
+                    </div>
+
+                    <div class="edit-field">
+                        <label class="edit-field-label">Valor Orçado</label>
+                        <input type="text" id="editSubcategoryValue" class="edit-field-input" placeholder="Deixe em branco para não alterar">
+                    </div>
+
+                    <div class="edit-actions">
+                        <button type="button" class="btn-save-edit" id="btnSaveEdit">SALVAR</button>
+                        <button type="button" class="btn-delete-item" id="btnDeleteItem">EXCLUIR</button>
+                    </div>
+
+                    <div id="editFeedback" class="edit-feedback"></div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Modal de Confirmação -->
+    <div id="confirmModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2 class="modal-title" id="modalTitle">Confirmar exclusão</h2>
+            <p class="modal-message" id="modalMessage">Tem certeza?</p>
+            <div class="modal-actions">
+                <button type="button" class="modal-btn modal-btn-cancel" id="modalBtnCancel">Cancelar</button>
+                <button type="button" class="modal-btn modal-btn-confirm" id="modalBtnConfirm">Excluir</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDyjkV2j3wAKUs1hmIbPKJG2oTCJCWX1-4",
+            authDomain: "controle-investimentos-hotel.firebaseapp.com",
+            projectId: "controle-investimentos-hotel",
+            storageBucket: "controle-investimentos-hotel.firebasestorage.app",
+            messagingSenderId: "56780264305",
+            appId: "1:56780264305:web:b41813d31088ed31da1cd0",
+            measurementId: "G-SS7GWRPWZT"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        const authGuard = document.getElementById('authGuard');
+        const menuScreen = document.getElementById('menuScreen');
+        const createScreen = document.getElementById('createScreen');
+        const selectYearScreen = document.getElementById('selectYearScreen');
+        const categoriesListScreen = document.getElementById('categoriesListScreen');
+        const editItemScreen = document.getElementById('editItemScreen');
+        const goHomeBtn = document.getElementById('goHomeBtn');
+
+        const formCriar = document.getElementById('formCriarCategoria');
+        const inputValor = document.getElementById('valorOrcado');
+        const feedbackCreate = document.getElementById('feedbackCreate');
+        const btnCriar = document.getElementById('btnCriar');
+
+        // Edit new flow
+        const yearSelector = document.getElementById('yearSelector');
+        const yearTitle = document.getElementById('yearTitle');
+        const categoriesList = document.getElementById('categoriesList');
+        const searchCategories = document.getElementById('searchCategories');
+        const editCategoryName = document.getElementById('editCategoryName');
+        const editSubcategoryName = document.getElementById('editSubcategoryName');
+        const editSubcategoryValue = document.getElementById('editSubcategoryValue');
+        const btnSaveEdit = document.getElementById('btnSaveEdit');
+        const btnDeleteItem = document.getElementById('btnDeleteItem');
+        const editFeedback = document.getElementById('editFeedback');
+
+        // Modal
+        const confirmModal = document.getElementById('confirmModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalMessage = document.getElementById('modalMessage');
+        const modalBtnCancel = document.getElementById('modalBtnCancel');
+        const modalBtnConfirm = document.getElementById('modalBtnConfirm');
+
+        let currentYear = null;
+        let currentCategory = null;
+        let currentSubcategory = null;
+        let pendingDelete = null;
+
+        function parseMoeda(valor) {
+            return parseFloat(valor.replace(/[R$\s.]/g, '').replace(',', '.'));
+        }
+
+        function formatarMoedaInput(inputEl) {
+            let digits = inputEl.value.replace(/\D/g, '');
+            if (!digits) {
+                inputEl.value = '';
+                return;
+            }
+            const num = parseInt(digits, 10) / 100;
+            inputEl.value = 'R$ ' + num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function mostrarTela(destino) {
+            menuScreen.classList.add('hidden');
+            createScreen.classList.add('hidden');
+            selectYearScreen.classList.add('hidden');
+            categoriesListScreen.classList.add('hidden');
+            editItemScreen.classList.add('hidden');
+            destino.classList.remove('hidden');
+        }
+
+        function categoriaTemMovimentoNoAno(data, categoria) {
+            if (!data || !data[categoria]) return false;
+            for (const item of Object.values(data[categoria])) {
+                if (!item || typeof item !== 'object') continue;
+                if (Array.isArray(item.compras) && item.compras.length > 0) return true;
+                if (Array.isArray(item.meses) && item.meses.some(v => Number(v) > 0)) return true;
+            }
+            return false;
+        }
+
+        function filtrarCategoriasPorAno(data, ano) {
+            const cfg = data?._config || {};
+            if (ano === '2026') {
+                return cfg;
+            }
+
+            const criadas = new Set(data?._categoriasCriadasNoAno || []);
+            const filtradas = {};
+
+            Object.entries(cfg).forEach(([categoria, dadosCategoria]) => {
+                const criadaNoAno = criadas.has(categoria) || dadosCategoria?.criadaNoAno === true;
+                const temMovimento = categoriaTemMovimentoNoAno(data, categoria);
+
+                if (criadaNoAno || temMovimento) {
+                    filtradas[categoria] = dadosCategoria;
+                }
+            });
+
+            return filtradas;
+        }
+
+        function showFeedback(el, message, isError = false) {
+            el.textContent = message;
+            el.className = isError ? 'feedback error' : 'feedback success';
+        }
+
+        async function carregarCategoriasAno(ano) {
+            const snap = await getDoc(doc(db, 'investimentos', ano));
+            if (!snap.exists()) return {};
+            const dados = snap.data();
+            return filtrarCategoriasPorAno(dados, ano);
+        }
+
+        document.getElementById('openCreateBtn').addEventListener('click', () => {
+            feedbackCreate.className = 'feedback';
+            feedbackCreate.textContent = '';
+            mostrarTela(createScreen);
+        });
+
+        document.getElementById('openEditBtn').addEventListener('click', () => {
+            mostrarTela(selectYearScreen);
+            renderYearSelector();
+        });
+
+        goHomeBtn.addEventListener('click', () => {
+            const estaNoCreate = !createScreen.classList.contains('hidden');
+            const estaNoEdit = !selectYearScreen.classList.contains('hidden') ||
+                               !categoriesListScreen.classList.contains('hidden') ||
+                               !editItemScreen.classList.contains('hidden');
+
+            if (estaNoCreate || estaNoEdit) {
+                mostrarTela(menuScreen);
+                return;
+            }
+
+            window.location.href = 'index.html';
+        });
+
+        function renderYearSelector() {
+            yearSelector.innerHTML = '';
+            const years = ['2025', '2026', '2027', '2028'];
+            years.forEach(year => {
+                const card = document.createElement('button');
+                card.className = 'year-card';
+                card.type = 'button';
+                card.textContent = year;
+                card.addEventListener('click', () => openCategoriesForYear(year));
+                yearSelector.appendChild(card);
+            });
+        }
+
+        async function openCategoriesForYear(year) {
+            currentYear = year;
+            yearTitle.textContent = `Categorias de ${year}`;
+            
+            const cfg = await carregarCategoriasAno(year);
+            renderCategories(cfg);
+            
+            // Setup search
+            const searchInput = document.getElementById('searchCategories');
+            searchInput.value = '';
+            searchInput.addEventListener('input', (e) => {
+                filterCategories(e.target.value);
+            });
+            
+            mostrarTela(categoriesListScreen);
+        }
+
+        function renderCategories(cfg) {
+            categoriesList.innerHTML = '';
+            
+            if (Object.keys(cfg).length === 0) {
+                categoriesList.innerHTML = '<div class="no-results">Nenhuma categoria neste ano</div>';
+                return;
+            }
+
+            let categoriasRenderizadas = 0;
+
+            Object.entries(cfg).forEach(([categoria, dados]) => {
+                const card = document.createElement('div');
+                card.className = 'category-card';
+                card.dataset.categoria = categoria;
+                card.dataset.searchText = categoria.toLowerCase();
+
+                const itens = dados.itens || {};
+                const totalItens = Object.keys(itens).length;
+
+                let html = `
+                    <div class="category-header">
+                        <button type="button" class="toggle-expand" title="Expandir/colapsar">▾</button>
+                        <div class="category-name">${categoria}</div>
+                        <div class="category-actions">
+                            <button type="button" class="action-btn edit" title="Editar categoria" data-action="edit-cat" data-category="${categoria}">✎</button>
+                            <button type="button" class="action-btn delete" title="Deletar categoria" data-action="delete-cat" data-category="${categoria}">🗑</button>
+                        </div>
+                    </div>
+                    <div class="subcategories-container">
+                        <div style="padding-top: 8px;">
+                `;
+
+                if (totalItens === 0) {
+                    html += '<div style="color: var(--muted); font-size: 0.85rem;">Sem subcategorias</div>';
+                } else {
+                    Object.entries(itens).forEach(([subcategoria, valor]) => {
+                        const valorFormatado = typeof valor === 'number' 
+                            ? 'R$ ' + valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                            : 'R$ 0,00';
+                        
+                        card.dataset.searchText += ' ' + subcategoria.toLowerCase();
+
+                        html += `
+                            <div class="subcategory-item">
+                                <div class="subcategory-info">
+                                    <div class="subcategory-name">${subcategoria}</div>
+                                    <div class="subcategory-value">${valorFormatado}</div>
+                                </div>
+                                <div class="subcategory-actions">
+                                    <button type="button" class="subcategory-btn edit" title="Editar" data-action="edit-sub" data-category="${categoria}" data-subcategory="${subcategoria}">✎</button>
+                                    <button type="button" class="subcategory-btn delete" title="Deletar" data-action="delete-sub" data-category="${categoria}" data-subcategory="${subcategoria}">🗑</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+
+                html += '</div></div>';
+                card.innerHTML = html;
+                categoriesList.appendChild(card);
+
+                // Toggle expand/collapse
+                const toggleBtn = card.querySelector('.toggle-expand');
+                const container = card.querySelector('.subcategories-container');
+                toggleBtn.addEventListener('click', () => {
+                    toggleBtn.classList.toggle('expanded');
+                    container.classList.toggle('expanded');
+                });
+
+                // Event delegation para botões
+                card.addEventListener('click', (e) => {
+                    const btn = e.target.closest('button[data-action]');
+                    if (!btn) return;
+
+                    const action = btn.dataset.action;
+                    const category = btn.dataset.category;
+                    const subcategory = btn.dataset.subcategory;
+
+                    if (action === 'edit-cat') {
+                        openEditScreen(category, null);
+                    } else if (action === 'delete-cat') {
+                        openDeleteModal(category, null);
+                    } else if (action === 'edit-sub') {
+                        openEditScreen(category, subcategory);
+                    } else if (action === 'delete-sub') {
+                        openDeleteModal(category, subcategory);
+                    }
+                });
+
+                categoriasRenderizadas++;
+            });
+
+            if (categoriasRenderizadas === 0) {
+                categoriesList.innerHTML = '<div class="no-results">Nenhum resultado encontrado</div>';
+            }
+        }
+
+        function filterCategories(searchTerm) {
+            const cards = document.querySelectorAll('.category-card');
+            const term = searchTerm.toLowerCase();
+            let visibleCount = 0;
+
+            cards.forEach(card => {
+                const searchText = card.dataset.searchText || '';
+                const matches = searchText.includes(term);
+                card.style.display = matches ? '' : 'none';
+                if (matches) visibleCount++;
+            });
+
+            if (visibleCount === 0 && term.length > 0) {
+                if (!document.querySelector('.no-results')) {
+                    const noResults = document.createElement('div');
+                    noResults.className = 'no-results';
+                    noResults.textContent = 'Nenhum resultado encontrado';
+                    categoriesList.appendChild(noResults);
+                }
+            }
+        }
+
+        function openDeleteModal(category, subcategory) {
+            pendingDelete = { year: currentYear, categoria: category, subcategoria: subcategory };
+            
+            if (subcategory) {
+                modalTitle.textContent = 'Confirmar exclusão';
+                modalMessage.textContent = `Tem certeza que deseja excluir "${subcategory}" de "${category}"? Esta ação não pode ser desfeita.`;
+            } else {
+                modalTitle.textContent = 'Confirmar exclusão de categoria';
+                modalMessage.textContent = `Tem certeza que deseja excluir "${category}" inteira? Esta ação não pode ser desfeita.`;
+            }
+            confirmModal.classList.remove('hidden');
+        }
+
+        function openEditScreen(categoria, subcategoria) {
+            currentCategory = categoria;
+            currentSubcategory = subcategoria;
+
+            editCategoryName.value = categoria;
+            editSubcategoryName.value = subcategoria || '';
+            editSubcategoryValue.value = '';
+
+            mostrarTela(editItemScreen);
+        }
+
+        formCriar.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            feedbackCreate.className = 'feedback';
+            feedbackCreate.textContent = '';
+
+            const ano = document.getElementById('anoCategoria').value;
+            const nomeCategoria = document.getElementById('nomeCategoria').value.trim().toUpperCase();
+            const nomeSubcategoriaInformada = document.getElementById('nomeSubcategoria').value.trim();
+            let nomeSubcategoria = nomeSubcategoriaInformada || nomeCategoria;
+            if (!nomeSubcategoria || nomeSubcategoria.length === 0) {
+                nomeSubcategoria = nomeCategoria;
+            }
+            const valorOrcado = parseMoeda(inputValor.value);
+
+            if (!nomeCategoria || Number.isNaN(valorOrcado) || valorOrcado <= 0) {
+                showFeedback(feedbackCreate, 'Preencha todos os campos corretamente.', true);
+                return;
+            }
+
+            btnCriar.disabled = true;
+            btnCriar.textContent = 'Salvando...';
+
+            try {
+                const ref = doc(db, 'investimentos', ano);
+                const snap = await getDoc(ref);
+                const dados = snap.exists() ? snap.data() : {};
+                if (!dados._config) dados._config = {};
+                if (!Array.isArray(dados._categoriasCriadasNoAno)) dados._categoriasCriadasNoAno = [];
+                if (!dados._config[nomeCategoria]) dados._config[nomeCategoria] = { total: 0, itens: {}, criadaNoAno: ano !== '2026' };
+
+                if (ano !== '2026' && !dados._categoriasCriadasNoAno.includes(nomeCategoria)) {
+                    dados._categoriasCriadasNoAno.push(nomeCategoria);
+                }
+
+                dados._config[nomeCategoria].itens[nomeSubcategoria] = valorOrcado;
+                dados._config[nomeCategoria].total = Object.values(dados._config[nomeCategoria].itens)
+                    .reduce((acc, valor) => acc + (Number(valor) || 0), 0);
+
+                await setDoc(ref, dados, { merge: true });
+                formCriar.reset();
+                inputValor.value = '';
+                showFeedback(feedbackCreate, `Categoria criada com sucesso para ${ano}.`);
+            } catch (err) {
+                showFeedback(feedbackCreate, 'Erro ao salvar: ' + err.message, true);
+            } finally {
+                btnCriar.disabled = false;
+                btnCriar.textContent = 'CRIAR CATEGORIA';
+            }
+        });
+
+        inputValor.addEventListener('input', () => formatarMoedaInput(inputValor));
+        editSubcategoryValue.addEventListener('input', () => formatarMoedaInput(editSubcategoryValue));
+
+        btnSaveEdit.addEventListener('click', async () => {
+            if (!currentYear || !currentCategory || !currentSubcategory) {
+                showFeedback(editFeedback, 'Dados inválidos.', true);
+                return;
+            }
+
+            const novoNomeSubcategoria = editSubcategoryName.value.trim();
+            const novoValor = editSubcategoryValue.value.trim();
+
+            if (!novoNomeSubcategoria && !novoValor) {
+                showFeedback(editFeedback, 'Altere pelo menos um campo.', true);
+                return;
+            }
+
+            btnSaveEdit.disabled = true;
+            btnSaveEdit.textContent = 'Salvando...';
+
+            try {
+                const ref = doc(db, 'investimentos', currentYear);
+                const snap = await getDoc(ref);
+                if (!snap.exists()) {
+                    showFeedback(editFeedback, 'Nenhum dado encontrado.', true);
+                    return;
+                }
+
+                const dados = snap.data();
+                if (!dados._config?.[currentCategory]?.itens?.hasOwnProperty(currentSubcategory)) {
+                    showFeedback(editFeedback, 'Subcategoria não encontrada.', true);
+                    return;
+                }
+
+                const updateObj = {};
+
+                // Se mudou o nome da subcategoria
+                if (novoNomeSubcategoria && novoNomeSubcategoria !== currentSubcategory) {
+                    const valorAtual = dados._config[currentCategory].itens[currentSubcategory];
+                    updateObj[`_config.${currentCategory}.itens.${novoNomeSubcategoria}`] = valorAtual;
+                    updateObj[`_config.${currentCategory}.itens.${currentSubcategory}`] = deleteField();
+                } else {
+                    // Se só mudou o valor
+                    if (novoValor) {
+                        const novoValorNum = parseMoeda(novoValor);
+                        if (Number.isNaN(novoValorNum) || novoValorNum <= 0) {
+                            showFeedback(editFeedback, 'Valor inválido.', true);
+                            return;
+                        }
+                        updateObj[`_config.${currentCategory}.itens.${currentSubcategory}`] = novoValorNum;
+                    }
+                }
+
+                // Recalcula o total
+                const itensBefore = dados._config[currentCategory].itens;
+                let novoTotal = 0;
+                
+                Object.entries(itensBefore).forEach(([sub, valor]) => {
+                    if (sub === currentSubcategory && novoNomeSubcategoria && novoNomeSubcategoria !== currentSubcategory) {
+                        // Será deletado, não conta
+                    } else {
+                        const v = updateObj[`_config.${currentCategory}.itens.${sub}`] ?? valor;
+                        novoTotal += typeof v === 'number' ? v : (typeof valor === 'number' ? valor : 0);
+                    }
+                });
+
+                if (novoNomeSubcategoria && novoNomeSubcategoria !== currentSubcategory) {
+                    const valorAtual = dados._config[currentCategory].itens[currentSubcategory];
+                    novoTotal = Object.entries(itensBefore)
+                        .filter(([sub]) => sub !== currentSubcategory)
+                        .reduce((acc, [, v]) => acc + (typeof v === 'number' ? v : 0), 0) + valorAtual;
+                }
+
+                updateObj[`_config.${currentCategory}.total`] = novoTotal;
+
+                await setDoc(ref, updateObj, { merge: true });
+                showFeedback(editFeedback, 'Alterações salvas com sucesso.');
+                setTimeout(() => {
+                    openCategoriesForYear(currentYear);
+                }, 1000);
+            } catch (err) {
+                showFeedback(editFeedback, 'Erro ao salvar: ' + err.message, true);
+            } finally {
+                btnSaveEdit.disabled = false;
+                btnSaveEdit.textContent = 'SALVAR';
+            }
+        });
+
+        btnDeleteItem.addEventListener('click', () => {
+            if (!currentYear || !currentCategory || !currentSubcategory) {
+                showFeedback(editFeedback, 'Dados inválidos.', true);
+                return;
+            }
+
+            openDeleteModal(currentCategory, currentSubcategory);
+        });
+
+        modalBtnCancel.addEventListener('click', () => {
+            confirmModal.classList.add('hidden');
+            pendingDelete = null;
+        });
+
+        modalBtnConfirm.addEventListener('click', async () => {
+            if (!pendingDelete) return;
+
+            const { year, categoria, subcategoria } = pendingDelete;
+            modalBtnConfirm.disabled = true;
+            modalBtnConfirm.textContent = 'Excluindo...';
+
+            try {
+                const ref = doc(db, 'investimentos', year);
+                const snap = await getDoc(ref);
+                if (!snap.exists()) {
+                    showFeedback(editFeedback, 'Nenhum dado encontrado.', true);
+                    return;
+                }
+
+                const dados = snap.data();
+                const updateObj = {};
+
+                if (subcategoria) {
+                    // Deletar subcategoria
+                    if (!dados._config?.[categoria]?.itens?.hasOwnProperty(subcategoria)) {
+                        showFeedback(editFeedback, 'Subcategoria não encontrada.', true);
+                        return;
+                    }
+
+                    updateObj[`_config.${categoria}.itens.${subcategoria}`] = deleteField();
+
+                    const itensDaCategoria = Object.keys(dados._config[categoria].itens);
+                    if (itensDaCategoria.length === 1) {
+                        // Se era a última subcategoria, deletar categoria
+                        updateObj[`_config.${categoria}`] = deleteField();
+                        if (Array.isArray(dados._categoriasCriadasNoAno)) {
+                            updateObj._categoriasCriadasNoAno = dados._categoriasCriadasNoAno.filter(c => c !== categoria);
+                        }
+                    } else {
+                        // Recalcular total
+                        const novoTotal = Object.entries(dados._config[categoria].itens)
+                            .filter(([sub]) => sub !== subcategoria)
+                            .reduce((acc, [, valor]) => acc + (Number(valor) || 0), 0);
+                        updateObj[`_config.${categoria}.total`] = novoTotal;
+                    }
+                } else {
+                    // Deletar categoria inteira
+                    if (!dados._config?.[categoria]) {
+                        showFeedback(editFeedback, 'Categoria não encontrada.', true);
+                        return;
+                    }
+
+                    updateObj[`_config.${categoria}`] = deleteField();
+                    if (Array.isArray(dados._categoriasCriadasNoAno)) {
+                        updateObj._categoriasCriadasNoAno = dados._categoriasCriadasNoAno.filter(c => c !== categoria);
+                    }
+                }
+
+                await setDoc(ref, updateObj, { merge: true });
+                showFeedback(editFeedback, 'Excluído com sucesso.');
+                setTimeout(() => {
+                    openCategoriesForYear(year);
+                }, 1000);
+            } catch (err) {
+                showFeedback(editFeedback, 'Erro ao excluir: ' + err.message, true);
+            } finally {
+                confirmModal.classList.add('hidden');
+                modalBtnConfirm.disabled = false;
+                modalBtnConfirm.textContent = 'Excluir';
+                pendingDelete = null;
+            }
+        });
+
+        confirmModal.addEventListener('click', (e) => {
+            if (e.target === confirmModal) {
+                confirmModal.classList.add('hidden');
+                pendingDelete = null;
+            }
+        });
+
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                authGuard.classList.remove('hidden');
+                menuScreen.classList.add('hidden');
+                createScreen.classList.add('hidden');
+                selectYearScreen.classList.add('hidden');
+                categoriesListScreen.classList.add('hidden');
+                editItemScreen.classList.add('hidden');
+                return;
+            }
+
+            authGuard.classList.add('hidden');
+            mostrarTela(menuScreen);
+        });
+    </script>
+</body>
+
+</html>
+

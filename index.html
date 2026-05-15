@@ -14,9 +14,38 @@
 
 </head>
 
-<body>
-    <button id="userAvatar" class="user-avatar-btn" type="button" aria-label="Perfil do usuário"></button>
-    <div id="loginOverlay" class="login-overlay">
+<body class="with-sidebar sidebar-collapsed home-clean">
+    <button id="sidebarExpandBtn" class="sidebar-toggle sidebar-toggle-expand" type="button" aria-label="Expandir barra lateral" aria-expanded="false">☰</button>
+    <aside id="appSidebar" class="app-sidebar" aria-label="Barra lateral">
+        <div class="sidebar-top">
+            <div class="sidebar-user-inline">
+                <button id="userAvatar" class="user-avatar-btn" type="button" aria-label="Perfil do usuário"></button>
+                <span id="sidebarUserName" class="sidebar-user-name">Usuário</span>
+                <button id="sidebarToggleBtn" class="sidebar-toggle sidebar-toggle-collapse" type="button" aria-label="Recolher barra lateral" aria-expanded="true">→</button>
+            </div>
+        </div>
+        <nav class="sidebar-nav" aria-label="Navegação principal">
+            <button id="sidebarInicioBtn" class="sidebar-link" type="button">
+                <span class="sidebar-link-icon">⌂</span>
+                <span class="sidebar-link-label">Inicio</span>
+            </button>
+            <div id="sidebarCategoriasGroup" class="sidebar-group">
+                <button id="sidebarCategoriasBtn" class="sidebar-link" type="button" aria-expanded="false">
+                    <span class="sidebar-link-icon">▦</span>
+                    <span class="sidebar-link-label">Categorias</span>
+                    <span class="sidebar-link-arrow">▾</span>
+                </button>
+                <div id="sidebarCategoriasSubmenu" class="sidebar-submenu">
+                    <button id="sidebarVerCategoriasBtn" class="sidebar-suboption" type="button">Ver Categorias</button>
+                    <button id="sidebarCriarCategoriaBtn" class="sidebar-suboption" type="button">Criar Categoria</button>
+                </div>
+            </div>
+        </nav>
+        <div class="sidebar-footer-actions">
+            <button id="btnSidebarLogout" class="sidebar-logout-btn" type="button">Sair</button>
+        </div>
+    </aside>
+    <div id="loginOverlay" class="login-overlay" style="display: none;">
         <div class="login-panel">
             <div class="login-badge">Acesso restrito</div>
             <h1 class="login-title">Controle de Investimentos</h1>
@@ -61,21 +90,6 @@
         </div>
     </div>
 
-    <div id="userPanelBackdrop" class="user-panel-backdrop">
-        <aside class="user-panel">
-            <div class="user-panel-header">
-                <div id="userPanelAvatar" class="user-panel-avatar"></div>
-                <div>
-                    <div id="userPanelName" class="user-panel-name"></div>
-                    <div id="userPanelEmail" class="user-panel-email"></div>
-                </div>
-            </div>
-            <div class="user-panel-footer">
-                <button id="btnLogout" class="btn-logout">Sair da conta</button>
-            </div>
-        </aside>
-    </div>
-
     <div class="container">
         <header>
             <div class="header-main">
@@ -90,12 +104,6 @@
                 </h1>
             </div>
             <div class="header-actions">
-                <button id="configBtn" class="btn-ghost btn-icon" title="Configurações de Categorias">⚙️</button>
-                <div class="search-container">
-                    <input type="text" id="searchMain" placeholder="Buscar categoria ou item...">
-                    <button id="clearSearch" class="btn-clear-search" title="Limpar busca">&times;</button>
-                </div>
-                <button id="btnSearch" class="btn-secondary btn-compact">Pesquisar</button>
                 <button id="novaCompraBtn" class="btn-primary">NOVA COMPRA</button>
                 <button id="baixarHistoricoBtn" class="btn-secondary btn-compact">⭳ Exportar</button>
             </div>

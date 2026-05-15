@@ -1,7 +1,7 @@
 // Import Firebase SDKs diretamente via CDN (sem npm/build)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
-import { getAuth, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // Your web app's Firebase configuration
@@ -143,6 +143,8 @@ let CATEGORIAS = {
     }
 };
 
+const CATEGORIAS_2026_BASE = JSON.parse(JSON.stringify(CATEGORIAS));
+
 // Mapeamento de links das planilhas externas por categoria
 const LINKS_PLANILHAS = {
     "MARKETING": "https://docs.google.com/spreadsheets/d/1Eg2QYIwgkSgHAUyN-lNos8wTICQ3mFTK/edit?gid=1272441978#gid=1272441978",
@@ -179,22 +181,57 @@ function criarEstruturaInicial() {
     return estrutura;
 }
 
+function categoriaTemMovimentoNoAno(data, categoria) {
+    if (!data || !data[categoria]) return false;
+    for (const item of Object.values(data[categoria])) {
+        if (!item || typeof item !== 'object') continue;
+        if (Array.isArray(item.compras) && item.compras.length > 0) return true;
+        if (Array.isArray(item.meses) && item.meses.some(v => Number(v) > 0)) return true;
+    }
+    return false;
+}
+
+function filtrarCategoriasPorAno(data, ano) {
+    const configBase = data?._config || {};
+    if (ano === '2026') {
+        return JSON.parse(JSON.stringify(configBase));
+    }
+
+    const categoriasCriadas = new Set(data?._categoriasCriadasNoAno || []);
+    const filtradas = {};
+
+    for (const [categoria, dadosCategoria] of Object.entries(configBase)) {
+        const foiCriadaNoAno = categoriasCriadas.has(categoria) || dadosCategoria?.criadaNoAno === true;
+        const temMovimento = categoriaTemMovimentoNoAno(data, categoria);
+
+        if (foiCriadaNoAno || temMovimento) {
+            const clone = JSON.parse(JSON.stringify(dadosCategoria));
+            delete clone.criadaNoAno;
+            filtradas[categoria] = clone;
+        }
+    }
+
+    return filtradas;
+}
+
 // Inicialização dos dados no Firestore
 async function inicializarDados() {
     try {
+        CATEGORIAS = anoAtual === '2026' ? JSON.parse(JSON.stringify(CATEGORIAS_2026_BASE)) : {};
+
         const docRef = doc(db, 'investimentos', anoAtual);
         const snap = await getDoc(docRef);
         if (snap.exists()) {
             const data = snap.data();
             dadosCache = data;
-            // Se houver configuração salva no banco, ela sobrepõe o CATEGORIAS hardcoded
-            if (data._config) {
-                CATEGORIAS = data._config;
-            }
+            CATEGORIAS = filtrarCategoriasPorAno(data, anoAtual);
         } else {
-            const estrutura = criarEstruturaInicial();
-            // Salva a estrutura inicial e a config base
+            const estrutura = anoAtual === '2026' ? criarEstruturaInicial() : {};
+            // Para 2026 mantém base completa, para outros anos começa vazio.
             estrutura._config = JSON.parse(JSON.stringify(CATEGORIAS));
+            if (anoAtual !== '2026') {
+                estrutura._categoriasCriadasNoAno = [];
+            }
             await setDoc(docRef, estrutura);
             dadosCache = estrutura;
         }
@@ -241,6 +278,11 @@ function parseMoeda(valor) {
 function parseDataISO(dataStr) {
     if (!dataStr) return new Date();
     return new Date(dataStr + 'T00:00:00');
+}
+
+function getClasseDisponivel(valor) {
+    if (valor === null || valor === undefined) return '';
+    return valor < 0 ? 'negativo' : '';
 }
 
 // Cálculo de gasto total por categoria
@@ -349,12 +391,12 @@ function toastError(title, message) {
 // Atualizar avatar e painel do usuário logado
 function atualizarUsuarioUI(user) {
     const avatarBtn = document.getElementById('userAvatar');
-    const panelBackdrop = document.getElementById('userPanelBackdrop');
+    const sidebarUserName = document.getElementById('sidebarUserName');
     const panelAvatar = document.getElementById('userPanelAvatar');
     const panelName = document.getElementById('userPanelName');
     const panelEmail = document.getElementById('userPanelEmail');
 
-    if (!avatarBtn || !panelBackdrop || !panelAvatar || !panelName || !panelEmail) return;
+    if (!avatarBtn) return;
 
     if (user) {
         usuarioAtual = user;
@@ -370,20 +412,19 @@ function atualizarUsuarioUI(user) {
 
         avatarBtn.textContent = iniciais || 'U';
         avatarBtn.style.display = 'flex';
+        if (sidebarUserName) sidebarUserName.textContent = nomeBase;
 
-        panelAvatar.textContent = iniciais || 'U';
-        panelName.textContent = nomeBase;
-        panelEmail.textContent = email;
+        if (panelAvatar) panelAvatar.textContent = iniciais || 'U';
+        if (panelName) panelName.textContent = nomeBase;
+        if (panelEmail) panelEmail.textContent = email;
     } else {
         usuarioAtual = null;
         avatarBtn.style.display = 'none';
         avatarBtn.textContent = '';
-        panelAvatar.textContent = '';
-        panelName.textContent = '';
-        panelEmail.textContent = '';
-        if (panelBackdrop) {
-            panelBackdrop.style.display = 'none';
-        }
+        if (sidebarUserName) sidebarUserName.textContent = 'Usuário';
+        if (panelAvatar) panelAvatar.textContent = '';
+        if (panelName) panelName.textContent = '';
+        if (panelEmail) panelEmail.textContent = '';
     }
 }
 
@@ -428,20 +469,6 @@ function aplicarCompraEmDados(dados, categoria, produto, valor, parcelas, dataCo
     const mesInicio = data.getMonth();
     const valorParcela = valor / parcelas;
 
-    // Verificar limite da categoria (não permitir exceder)
-    const orcamentoCategoria = CATEGORIAS[categoria]?.total ?? null;
-
-    if (orcamentoCategoria !== null) {
-        const gastoAtual = calcularGastoCategoria(dados, categoria);
-        const disponivel = orcamentoCategoria - gastoAtual;
-
-        // Ajuste de tolerância para evitar problemas de casas decimais (ex.: 17198.399999 vs 17198.40)
-        const diff = valor - disponivel;
-        if (diff > 0.01) {
-            return { ok: false, tipo: 'limiteCategoria', disponivel: disponivel };
-        }
-    }
-
     // Registrar a compra com o nome do produto
     const compra = {
         valor: valor,
@@ -474,13 +501,6 @@ function adicionarCompra(categoria, produto, valor, parcelas, dataCompra, quanti
     if (!resultado.ok) {
         if (resultado.tipo === 'categoriaInvalida') {
             toastError('Categoria inválida', 'Selecione uma categoria válida antes de registrar a compra.');
-        } else if (resultado.tipo === 'limiteCategoria') {
-            const disponivel = Math.max(resultado.disponivel, 0);
-            toastWarning(
-                'Limite da categoria atingido',
-                `Esta compra não foi registrada porque ultrapassa o orçamento disponível da categoria. ` +
-                `Valor disponível: ${formatarMoeda(disponivel)}. Valor da compra: ${formatarMoeda(valor)}.`
-            );
         }
         return false;
     }
@@ -506,6 +526,7 @@ function renderizarResumoGeral() {
 
     const resumos = [];
     let totalInvestidoGeral = 0;
+    let totalPrevistoGeral = 0;
 
     for (const [categoria, dados_categoria] of Object.entries(CATEGORIAS)) {
         const orcamento = dados_categoria.total;
@@ -518,6 +539,14 @@ function renderizarResumoGeral() {
         }
 
         totalInvestidoGeral += gastoTotal;
+        const categoriaNormalizada = categoria
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .trim()
+            .toLowerCase();
+
+        if (orcamento !== null && categoriaNormalizada !== 'diversos') {
+            totalPrevistoGeral += orcamento;
+        }
 
         const disponivel = orcamento !== null ? orcamento - gastoTotal : null;
         const percentual = orcamento !== null && orcamento > 0 ? (gastoTotal / orcamento) * 100 : 0;
@@ -528,8 +557,12 @@ function renderizarResumoGeral() {
     const totalBox = document.createElement('div');
     totalBox.className = 'resumo-total-geral';
     totalBox.innerHTML = `
-        <span>Total de investimentos já realizados em 2026</span>
+        <span>Total de investimentos já realizados em ${anoAtual}</span>
         <strong>${formatarMoeda(totalInvestidoGeral)}</strong>
+        <div class="resumo-total-meta">
+            <span>Previsto :</span>
+            <strong>${formatarMoeda(totalPrevistoGeral)}</strong>
+        </div>
     `;
     resumoContainer.appendChild(totalBox);
 
@@ -559,7 +592,7 @@ function renderizarResumoGeral() {
                 </div>
                 <div class="valor-item">
                     <label>Disponível</label>
-                    <div class="valor disponivel">${formatarMoeda(disponivel)}</div>
+                    <div class="valor disponivel ${getClasseDisponivel(disponivel)}">${formatarMoeda(disponivel)}</div>
                 </div>
             </div>
             ${orcamento !== null ? `
@@ -569,14 +602,9 @@ function renderizarResumoGeral() {
             ` : ''}
         `;
 
-        // Clique único: Scroll + Flash
-        card.addEventListener('click', (e) => {
-            const alvo = document.getElementById(sectionId);
-            if (alvo) {
-                alvo.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                alvo.classList.add('highlight-flash');
-                setTimeout(() => alvo.classList.remove('highlight-flash'), 2000);
-            }
+        // Clique único: abrir painel de insight da categoria
+        card.addEventListener('click', () => {
+            abrirInsightCategoria(categoria, sectionId);
         });
 
         // Clique duplo: Abrir Modal de Itens
@@ -586,6 +614,222 @@ function renderizarResumoGeral() {
 
         resumoContainer.appendChild(card);
     }
+}
+
+function getClasseUso(percentual) {
+    if (percentual >= 90) return 'danger';
+    if (percentual >= 70) return 'warning';
+    return 'healthy';
+}
+
+function getStatusUso(percentual) {
+    if (percentual >= 100) return 'Orcamento estourado';
+    if (percentual >= 90) return 'Limite critico';
+    if (percentual >= 70) return 'Em atencao';
+    return 'Saudavel';
+}
+
+function gerarResumoCategoria(categoria) {
+    const dados = carregarDados();
+    const dadosCategoria = CATEGORIAS[categoria] || {};
+    const orcamento = dadosCategoria.total;
+    const origemCategoria = dados[categoria] || {};
+    const itens = [];
+    const gastosMensais = Array(12).fill(0);
+    let gastoTotal = 0;
+
+    for (const [nomeItem, item] of Object.entries(origemCategoria)) {
+        const meses = Array.isArray(item?.meses) ? item.meses : Array(12).fill(0);
+        const gastoItem = meses.reduce((acc, v) => acc + (Number(v) || 0), 0);
+        const limite = Number(item?.limite) || 0;
+
+        for (let i = 0; i < 12; i++) {
+            gastosMensais[i] += Number(meses[i]) || 0;
+        }
+
+        gastoTotal += gastoItem;
+        itens.push({
+            nome: nomeItem,
+            gasto: gastoItem,
+            limite,
+            compras: Array.isArray(item?.compras) ? item.compras.length : 0
+        });
+    }
+
+    itens.sort((a, b) => b.gasto - a.gasto);
+
+    const disponivel = orcamento !== null && orcamento !== undefined ? orcamento - gastoTotal : null;
+    const percentual = orcamento && orcamento > 0 ? (gastoTotal / orcamento) * 100 : 0;
+    const usoClass = getClasseUso(percentual);
+
+    return {
+        orcamento,
+        gastoTotal,
+        disponivel,
+        percentual,
+        usoClass,
+        status: getStatusUso(percentual),
+        itensTop: itens.slice(0, 5),
+        gastosMensais,
+        totalItens: itens.length
+    };
+}
+
+function obterOuCriarInsightModal() {
+    let overlay = document.getElementById('insightCategoriaOverlay');
+    if (overlay) return overlay;
+
+    overlay = document.createElement('div');
+    overlay.id = 'insightCategoriaOverlay';
+    overlay.className = 'insight-overlay';
+    overlay.innerHTML = `
+        <div class="insight-panel" role="dialog" aria-modal="true" aria-labelledby="insightTitle">
+            <button type="button" class="insight-close" id="insightCloseBtn" aria-label="Fechar painel">✕</button>
+            <div class="insight-hero">
+                <div>
+                    <p class="insight-eyebrow">Raio-X do investimento</p>
+                    <h3 id="insightTitle" class="insight-title"></h3>
+                    <div id="insightStatus" class="insight-status"></div>
+                </div>
+                <div class="insight-ring-wrap">
+                    <svg class="insight-ring" viewBox="0 0 120 120" aria-hidden="true">
+                        <circle class="ring-bg" cx="60" cy="60" r="52"></circle>
+                        <circle class="ring-progress" id="insightRingProgress" cx="60" cy="60" r="52"></circle>
+                    </svg>
+                    <div class="insight-ring-center" id="insightPercent"></div>
+                </div>
+            </div>
+
+            <div class="insight-kpis">
+                <article>
+                    <span>Orcado</span>
+                    <strong id="insightOrcado"></strong>
+                </article>
+                <article>
+                    <span>Gasto</span>
+                    <strong id="insightGasto"></strong>
+                </article>
+                <article>
+                    <span>Disponivel</span>
+                    <strong id="insightDisponivel"></strong>
+                </article>
+            </div>
+
+            <div class="insight-grid">
+                <section>
+                    <h4>Itens com maior impacto</h4>
+                    <div id="insightTopItens" class="insight-top-list"></div>
+                </section>
+                <section>
+                    <h4>Ritmo mensal</h4>
+                    <div id="insightMonthly" class="insight-monthly"></div>
+                </section>
+            </div>
+
+            <div class="insight-actions">
+                <button type="button" class="btn-secondary btn-compact" id="insightIrCategoriaBtn">Ir para detalhes da categoria</button>
+                <button type="button" class="btn-primary" id="insightVerItensBtn">Abrir itens completos</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const close = () => overlay.classList.remove('active');
+    overlay.querySelector('#insightCloseBtn')?.addEventListener('click', close);
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) close();
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && overlay.classList.contains('active')) {
+            close();
+        }
+    });
+
+    return overlay;
+}
+
+function abrirInsightCategoria(categoria, sectionId) {
+    const overlay = obterOuCriarInsightModal();
+    const resumo = gerarResumoCategoria(categoria);
+    const porcentagemVisivel = Math.min(Math.max(resumo.percentual, 0), 999);
+
+    const title = overlay.querySelector('#insightTitle');
+    const status = overlay.querySelector('#insightStatus');
+    const percent = overlay.querySelector('#insightPercent');
+    const orcado = overlay.querySelector('#insightOrcado');
+    const gasto = overlay.querySelector('#insightGasto');
+    const disponivel = overlay.querySelector('#insightDisponivel');
+    const topItens = overlay.querySelector('#insightTopItens');
+    const monthly = overlay.querySelector('#insightMonthly');
+    const ring = overlay.querySelector('#insightRingProgress');
+    const btnIrCategoria = overlay.querySelector('#insightIrCategoriaBtn');
+    const btnVerItens = overlay.querySelector('#insightVerItensBtn');
+
+    if (!title || !status || !percent || !orcado || !gasto || !disponivel || !topItens || !monthly || !ring || !btnIrCategoria || !btnVerItens) {
+        return;
+    }
+
+    title.textContent = categoria;
+    status.className = `insight-status ${resumo.usoClass}`;
+    status.textContent = `${resumo.status} • ${resumo.totalItens} itens monitorados`;
+    percent.textContent = `${porcentagemVisivel.toFixed(1)}%`;
+    orcado.textContent = formatarMoeda(resumo.orcamento);
+    gasto.textContent = formatarMoeda(resumo.gastoTotal);
+    disponivel.textContent = formatarMoeda(resumo.disponivel);
+    disponivel.classList.toggle('negativo', resumo.disponivel !== null && resumo.disponivel < 0);
+
+    const raio = 52;
+    const circ = 2 * Math.PI * raio;
+    const progress = Math.min(resumo.percentual, 100);
+    ring.style.strokeDasharray = `${circ}`;
+    ring.style.strokeDashoffset = `${circ - (progress / 100) * circ}`;
+    ring.classList.remove('healthy', 'warning', 'danger');
+    ring.classList.add(resumo.usoClass);
+
+    if (resumo.itensTop.length === 0) {
+        topItens.innerHTML = '<p class="insight-empty">Sem movimentacoes nesta categoria.</p>';
+    } else {
+        topItens.innerHTML = resumo.itensTop.map((item, idx) => `
+            <div class="insight-item-row">
+                <div>
+                    <strong>${idx + 1}. ${item.nome}</strong>
+                    <span>${item.compras} compras registradas</span>
+                </div>
+                <em>${formatarMoeda(item.gasto)}</em>
+            </div>
+        `).join('');
+    }
+
+    const maxMensal = Math.max(...resumo.gastosMensais, 1);
+    monthly.innerHTML = MESES.map((mes, idx) => {
+        const valor = resumo.gastosMensais[idx] || 0;
+        const altura = Math.max(8, (valor / maxMensal) * 86);
+        return `
+            <div class="insight-month-col" title="${mes}: ${formatarMoeda(valor)}">
+                <div class="insight-month-bar ${resumo.usoClass}" style="height:${altura}px"></div>
+                <span>${mes}</span>
+            </div>
+        `;
+    }).join('');
+
+    btnIrCategoria.onclick = () => {
+        overlay.classList.remove('active');
+        const alvo = document.getElementById(sectionId);
+        if (alvo) {
+            alvo.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            alvo.classList.add('highlight-flash');
+            setTimeout(() => alvo.classList.remove('highlight-flash'), 2000);
+        }
+    };
+
+    btnVerItens.onclick = () => {
+        overlay.classList.remove('active');
+        abrirItensCategoria(categoria);
+    };
+
+    overlay.classList.add('active');
 }
 
 // Renderizar categorias filtradas
@@ -641,7 +885,7 @@ window.renderizarCategorias = function(filtro = '') {
                 </div>
                 <div class="total-item">
                     <label>Disponível</label>
-                    <div class="valor disponivel">${formatarMoeda(disponivelCategoria)}</div>
+                    <div class="valor disponivel ${getClasseDisponivel(disponivelCategoria)}">${formatarMoeda(disponivelCategoria)}</div>
                 </div>
             </div>
             <div class="categoria-actions">
@@ -662,80 +906,164 @@ window.renderizarCategorias = function(filtro = '') {
 }
 
 // Renderizar itens de uma categoria
-function renderizarItens(categoria, dados) {
-    if (!dados[categoria]) return '';
+function obterEntradasItensCategoria(categoria, dados) {
+    if (!dados[categoria]) return [];
 
-    let html = '';
+    return Object.entries(dados[categoria]).map(([item, dadosItem]) => {
+        const meses = Array.isArray(dadosItem.meses) ? dadosItem.meses : Array(12).fill(0);
+        const compras = Array.isArray(dadosItem.compras) ? dadosItem.compras : [];
+        const gastoTotal = meses.reduce((a, b) => a + b, 0);
+        return { item, dadosItem, meses, compras, gastoTotal };
+    }).sort((a, b) => b.gastoTotal - a.gastoTotal);
+}
 
-    for (const [item, dadosItem] of Object.entries(dados[categoria])) {
-        const gastoTotal = dadosItem.meses.reduce((a, b) => a + b, 0);
-        const limite = dadosItem.limite;
-        const disponivel = limite !== null ? limite - gastoTotal : null;
-        const percentual = limite !== null ? (gastoTotal / limite) * 100 : 0;
-
-        let progressClass = '';
-        if (percentual > 90) progressClass = 'danger';
-        else if (percentual > 70) progressClass = 'warning';
-
-        html += `
-            <div class="item-card">
-                <div class="item-header">
-                    <h3>${item}</h3>
-                    <div class="item-actions">
-                        <button class="btn-ghost" onclick="abrirHistorico('${categoria.replace(/'/g, "\\'")}', '${item.replace(/'/g, "\\'")}')">Ver histórico</button>
-                    </div>
-                </div>
-                <div class="item-status">
-                    <div class="status-item">
-                        <label>Limite</label>
-                        <div class="valor orcado">${formatarMoeda(limite)}</div>
-                    </div>
-                    <div class="status-item">
-                        <label>Gasto</label>
-                        <div class="valor gasto">${formatarMoeda(gastoTotal)}</div>
-                    </div>
-                    <div class="status-item">
-                        <label>Disponível</label>
-                        <div class="valor disponivel">${formatarMoeda(disponivel)}</div>
-                    </div>
-                </div>
-                ${limite !== null ? `
-                    <div class="progress-bar">
-                        <div class="progress-fill ${progressClass}" style="width: ${Math.min(percentual, 100)}%"></div>
-                    </div>
-                ` : ''}
-                <div class="meses-grid">
-                    ${dadosItem.meses.map((valor, index) => `
-                        <div class="mes-item ${valor > 0 ? 'com-gasto' : ''}">
-                            <label>${MESES[index]}</label>
-                            <div class="valor">${formatarMoeda(valor)}</div>
-                        </div>
-                    `).join('')}
-                </div>
-                ${dadosItem.compras.length > 0 ? `
-                    <div class="compras-historico">
-                        <h4>Histórico de Compras:</h4>
-                        ${dadosItem.compras.map((compra, index) => `
-                            <div class="compra-item">
-                                <div class="compra-main">
-                                    ${parseDataISO(compra.data).toLocaleDateString('pt-BR')} - 
-                                    ${formatarMoeda(compra.valor)} em ${compra.parcelas}x de ${formatarMoeda(compra.valorParcela)} - ${compra.item || item}
-                                    ${compra.quantidade ? ` • ${compra.quantidade} un.` : ''}
-                                    ${compra.observacao ? `<br><em style="font-size: 0.9em; color: #666;">Obs: ${compra.observacao}</em>` : ''}
-                                </div>
-                                <div class="compra-actions">
-                                    <button class="btn-ghost btn-compact" onclick="editarCompra('${categoria.replace(/'/g, "\\'")}', '${item.replace(/'/g, "\\'")}', ${index})">Editar</button>
-                                    <button class="btn-ghost btn-compact btn-delete" onclick="excluirCompra('${categoria.replace(/'/g, "\\'")}', '${item.replace(/'/g, "\\'")}', ${index})">Excluir</button>
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                ` : ''}
-            </div>
-        `;
+function renderizarDetalheItemCategoria(categoria, entrada) {
+    if (!entrada) {
+        return '<div class="compras-vazio">Nenhum item encontrado para esta categoria.</div>';
     }
 
-    return html;
+    const { item, dadosItem, meses, compras, gastoTotal } = entrada;
+    const limite = dadosItem.limite;
+    const disponivel = limite !== null ? limite - gastoTotal : null;
+    const percentual = limite !== null && Number(limite) > 0 ? (gastoTotal / limite) * 100 : 0;
+
+    let progressClass = '';
+    if (percentual > 90) progressClass = 'danger';
+    else if (percentual > 70) progressClass = 'warning';
+
+    const usoBadge = percentual > 90 ? 'badge-danger' : percentual > 70 ? 'badge-warning' : 'badge-ok';
+
+    return `
+        <div class="item-card item-card-focused">
+            <div class="item-header">
+                <div>
+                    <h3>${item}</h3>
+                    <p class="item-subline">${compras.length} compra(s) • ${percentual.toFixed(1)}% do limite utilizado</p>
+                </div>
+                <div class="item-actions">
+                    <span class="item-badge ${usoBadge}">${percentual > 90 ? 'Critico' : percentual > 70 ? 'Atencao' : 'Controlado'}</span>
+                    <button class="btn-ghost" onclick="abrirHistorico('${categoria.replace(/'/g, "\\'")}', '${item.replace(/'/g, "\\'")}')">Ver historico</button>
+                </div>
+            </div>
+
+            <div class="item-status">
+                <div class="status-item">
+                    <label>Limite</label>
+                    <div class="valor orcado">${formatarMoeda(limite)}</div>
+                </div>
+                <div class="status-item">
+                    <label>Gasto</label>
+                    <div class="valor gasto">${formatarMoeda(gastoTotal)}</div>
+                </div>
+                <div class="status-item">
+                    <label>Disponível</label>
+                    <div class="valor disponivel ${getClasseDisponivel(disponivel)}">${formatarMoeda(disponivel)}</div>
+                </div>
+            </div>
+
+            ${limite !== null ? `
+                <div class="progress-bar">
+                    <div class="progress-fill ${progressClass}" style="width: ${Math.min(percentual, 100)}%"></div>
+                </div>
+            ` : ''}
+
+            <div class="meses-grid">
+                ${meses.map((valor, index) => `
+                    <div class="mes-item ${valor > 0 ? 'com-gasto' : ''}">
+                        <label>${MESES[index]}</label>
+                        <div class="valor">${formatarMoeda(valor)}</div>
+                    </div>
+                `).join('')}
+            </div>
+
+            ${compras.length > 0 ? `
+                <div class="compras-historico">
+                    <h4>Historico de compras</h4>
+                    <div class="compras-table-wrap">
+                        <table class="compras-table">
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Valor</th>
+                                    <th>Parcelas</th>
+                                    <th>Qtd.</th>
+                                    <th>Observacao</th>
+                                    <th>Acoes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${compras.map((compra, index) => `
+                                    <tr>
+                                        <td>${parseDataISO(compra.data).toLocaleDateString('pt-BR')}</td>
+                                        <td>${formatarMoeda(compra.valor)}</td>
+                                        <td>${compra.parcelas}x de ${formatarMoeda(compra.valorParcela)}</td>
+                                        <td>${compra.quantidade || 1}</td>
+                                        <td>${compra.observacao || '-'}</td>
+                                        <td>
+                                            <div class="compra-actions">
+                                                <button class="btn-ghost btn-compact" onclick="editarCompra('${categoria.replace(/'/g, "\\'")}', '${item.replace(/'/g, "\\'")}', ${index})">Editar</button>
+                                                <button class="btn-ghost btn-compact btn-delete" onclick="excluirCompra('${categoria.replace(/'/g, "\\'")}', '${item.replace(/'/g, "\\'")}', ${index})">Excluir</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            ` : '<div class="compras-vazio">Sem compras registradas para este item.</div>'}
+        </div>
+    `;
+}
+
+function renderizarItens(categoria, dados) {
+    const entradas = obterEntradasItensCategoria(categoria, dados);
+    if (entradas.length === 0) {
+        return '<div class="compras-vazio">Sem itens cadastrados para esta categoria.</div>';
+    }
+
+    const totalItens = entradas.length;
+    const totalCompras = entradas.reduce((acc, e) => acc + e.compras.length, 0);
+    const totalGasto = entradas.reduce((acc, e) => acc + e.gastoTotal, 0);
+
+    return `
+        <div class="itens-overview">
+            <div class="overview-chip">
+                <span>Itens</span>
+                <strong>${totalItens}</strong>
+            </div>
+            <div class="overview-chip">
+                <span>Compras registradas</span>
+                <strong>${totalCompras}</strong>
+            </div>
+            <div class="overview-chip">
+                <span>Total gasto</span>
+                <strong>${formatarMoeda(totalGasto)}</strong>
+            </div>
+        </div>
+
+        <div class="itens-selector-box">
+            <label>Selecione o item para visualizar:</label>
+            <div class="itens-selector-shell" id="itemMenuShell">
+                <button type="button" id="itemMenuToggle" class="item-menu-toggle" aria-expanded="false">
+                    <span id="itemMenuSelected">${entradas[0].item} • ${formatarMoeda(entradas[0].gastoTotal)}</span>
+                    <span class="item-menu-caret">▾</span>
+                </button>
+                <div id="itemMenuList" class="item-menu-list">
+                    ${entradas.map((entrada, idx) => `
+                        <button type="button" class="item-menu-option ${idx === 0 ? 'active' : ''}" data-index="${idx}">
+                            <span>${entrada.item}</span>
+                            <strong>${formatarMoeda(entrada.gastoTotal)}</strong>
+                        </button>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+
+        <div id="itemDetailContainer">
+            ${renderizarDetalheItemCategoria(categoria, entradas[0])}
+        </div>
+    `;
 }
 
 // Abrir histórico em modal dedicado
@@ -865,13 +1193,6 @@ function salvarEdicaoCompra(contexto, novaCategoria, novoProduto, valor, parcela
 
         if (resultado.tipo === 'categoriaInvalida') {
             toastError('Categoria inválida', 'Selecione uma categoria válida para salvar a edição.');
-        } else if (resultado.tipo === 'limiteCategoria') {
-            const disponivel = Math.max(resultado.disponivel, 0);
-            toastWarning(
-                'Limite da categoria atingido',
-                `A edição não foi aplicada porque ultrapassa o orçamento disponível da categoria. ` +
-                `Valor disponível: ${formatarMoeda(disponivel)}. Valor da compra: ${formatarMoeda(valor)}.`
-            );
         }
         return false;
     }
@@ -887,9 +1208,53 @@ window.abrirItensCategoria = function (categoria) {
     const modalItens = document.getElementById('modalItens');
     const tituloItens = document.getElementById('tituloItens');
     const itensContainer = document.getElementById('itensContainer');
+    const entradas = obterEntradasItensCategoria(categoria, dados);
 
     tituloItens.textContent = `Itens - ${categoria}`;
     itensContainer.innerHTML = renderizarItens(categoria, dados);
+
+    const itemMenuShell = document.getElementById('itemMenuShell');
+    const itemMenuToggle = document.getElementById('itemMenuToggle');
+    const itemMenuSelected = document.getElementById('itemMenuSelected');
+    const itemMenuList = document.getElementById('itemMenuList');
+    const itemDetailContainer = document.getElementById('itemDetailContainer');
+
+    if (itemMenuShell && itemMenuToggle && itemMenuSelected && itemMenuList && itemDetailContainer) {
+        itemMenuToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const aberto = itemMenuShell.classList.toggle('open');
+            itemMenuToggle.setAttribute('aria-expanded', aberto ? 'true' : 'false');
+        });
+
+        itemMenuList.addEventListener('click', (e) => {
+            const option = e.target.closest('.item-menu-option');
+            if (!option) return;
+
+            const index = Number(option.dataset.index);
+            const entrada = entradas[index];
+            if (!entrada) return;
+
+            itemMenuSelected.textContent = `${entrada.item} • ${formatarMoeda(entrada.gastoTotal)}`;
+            itemDetailContainer.innerHTML = renderizarDetalheItemCategoria(categoria, entrada);
+
+            itemMenuList.querySelectorAll('.item-menu-option').forEach(btn => btn.classList.remove('active'));
+            option.classList.add('active');
+
+            itemMenuShell.classList.remove('open');
+            itemMenuToggle.setAttribute('aria-expanded', 'false');
+        });
+
+        if (window._itemMenuOutsideHandler) {
+            document.removeEventListener('click', window._itemMenuOutsideHandler);
+        }
+        window._itemMenuOutsideHandler = (event) => {
+            if (!itemMenuShell.contains(event.target)) {
+                itemMenuShell.classList.remove('open');
+                itemMenuToggle.setAttribute('aria-expanded', 'false');
+            }
+        };
+        document.addEventListener('click', window._itemMenuOutsideHandler);
+    }
 
     modalItens.style.display = 'block';
 }
@@ -1253,6 +1618,7 @@ const btnLimparBusca = document.getElementById('clearSearch');
 const btnSearch = document.getElementById('btnSearch');
 
 function executarBusca() {
+    if (!inputBusca) return;
     const termo = inputBusca.value;
     renderizarCategorias(termo);
 }
@@ -1269,6 +1635,56 @@ btnLimparBusca?.addEventListener('click', () => {
     btnLimparBusca.classList.remove('active');
     renderizarCategorias('');
 });
+
+function atualizarEstadoSidebar(abrir) {
+    document.body.classList.toggle('sidebar-open', abrir);
+    document.body.classList.toggle('sidebar-collapsed', !abrir);
+
+    const expandBtn = document.getElementById('sidebarExpandBtn');
+    const collapseBtn = document.getElementById('sidebarToggleBtn');
+    const grupoCategorias = document.getElementById('sidebarCategoriasGroup');
+    const btnCategorias = document.getElementById('sidebarCategoriasBtn');
+
+    if (expandBtn) {
+        expandBtn.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+    }
+
+    if (collapseBtn) {
+        collapseBtn.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+    }
+
+    if (!abrir && grupoCategorias && btnCategorias) {
+        grupoCategorias.classList.remove('open');
+        btnCategorias.setAttribute('aria-expanded', 'false');
+    }
+}
+
+function irParaInicio() {
+    atualizarEstadoSidebar(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function alternarSubmenuCategorias() {
+    const grupo = document.getElementById('sidebarCategoriasGroup');
+    const botao = document.getElementById('sidebarCategoriasBtn');
+    if (!grupo || !botao) return;
+
+    const aberto = grupo.classList.toggle('open');
+    botao.setAttribute('aria-expanded', aberto ? 'true' : 'false');
+}
+
+function verCategorias() {
+    window.location.href = 'categorias.html';
+}
+
+function criarCategoria() {
+    window.location.href = 'categorias.html';
+}
+
+function alternarSidebar() {
+    const aberta = document.body.classList.contains('sidebar-open');
+    atualizarEstadoSidebar(!aberta);
+}
 
 // Troca de Ano
 document.getElementById('anoSelect')?.addEventListener('change', async (e) => {
@@ -1325,29 +1741,16 @@ document.getElementById('formNovaCompra').addEventListener('submit', function (e
 // Atualizar interface completa
 function atualizarInterface() {
     renderizarResumoGeral();
-    renderizarCategorias();
 }
 
 // Abrir/fechar painel do usuário
 function inicializarPainelUsuario() {
     const avatarBtn = document.getElementById('userAvatar');
-    const backdrop = document.getElementById('userPanelBackdrop');
-    const btnLogout = document.getElementById('btnLogout');
+    const btnSidebarLogout = document.getElementById('btnSidebarLogout');
 
-    if (!avatarBtn || !backdrop || !btnLogout) return;
+    if (!avatarBtn || !btnSidebarLogout) return;
 
-    avatarBtn.addEventListener('click', () => {
-        if (!usuarioAtual) return;
-        backdrop.style.display = 'block';
-    });
-
-    backdrop.addEventListener('click', (e) => {
-        if (e.target === backdrop) {
-            backdrop.style.display = 'none';
-        }
-    });
-
-    btnLogout.addEventListener('click', async () => {
+    const executarLogout = async () => {
         try {
             await signOut(auth);
             atualizarUsuarioUI(null);
@@ -1357,17 +1760,79 @@ function inicializarPainelUsuario() {
             console.error('Erro ao sair:', err);
             toastError('Erro ao sair', 'Não foi possível encerrar a sessão.');
         }
+    };
+
+    avatarBtn.addEventListener('click', () => {
+        // Avatar mantido apenas como identificação visual na barra lateral.
     });
+
+    btnSidebarLogout?.addEventListener('click', executarLogout);
 }
 
 // Inicializar aplicação
 document.addEventListener('DOMContentLoaded', async function () {
     const loginForm = document.getElementById('loginForm');
     const loginOverlay = document.getElementById('loginOverlay');
+    const btnSidebarInicio = document.getElementById('sidebarInicioBtn');
+    const btnSidebarCategorias = document.getElementById('sidebarCategoriasBtn');
+    const btnSidebarVerCategorias = document.getElementById('sidebarVerCategoriasBtn');
+    const btnSidebarCriarCategoria = document.getElementById('sidebarCriarCategoriaBtn');
+    const btnSidebarExpand = document.getElementById('sidebarExpandBtn');
+    const btnSidebarToggle = document.getElementById('sidebarToggleBtn');
+
+    btnSidebarInicio?.addEventListener('click', irParaInicio);
+    btnSidebarCategorias?.addEventListener('click', alternarSubmenuCategorias);
+    btnSidebarVerCategorias?.addEventListener('click', verCategorias);
+    btnSidebarCriarCategoria?.addEventListener('click', criarCategoria);
+    btnSidebarExpand?.addEventListener('click', alternarSidebar);
+    btnSidebarToggle?.addEventListener('click', alternarSidebar);
+    atualizarEstadoSidebar(false);
 
     inicializarPainelUsuario();
+    let sessaoInicialCarregada = false;
+
+    if (loginOverlay) {
+        loginOverlay.style.display = 'none';
+    }
 
     if (loginForm && loginOverlay) {
+        onAuthStateChanged(auth, async (user) => {
+            if (sessaoInicialCarregada) return;
+            sessaoInicialCarregada = true;
+
+            if (!user) {
+                loginOverlay.style.display = 'flex';
+                atualizarUsuarioUI(null);
+                return;
+            }
+
+            autenticado = true;
+            loginOverlay.style.display = 'none';
+
+            const loadingScreen = document.getElementById('loadingScreen');
+            if (loadingScreen) {
+                loadingScreen.classList.add('active');
+            }
+
+            await inicializarDados();
+            atualizarInterface();
+
+            const hoje = new Date().toISOString().split('T')[0];
+            const dataInput = document.getElementById('dataCompra');
+            if (dataInput) dataInput.value = hoje;
+
+            atualizarUsuarioUI(user);
+
+            setTimeout(() => {
+                if (loadingScreen) {
+                    loadingScreen.classList.add('fade-out');
+                    setTimeout(() => {
+                        loadingScreen.classList.remove('active', 'fade-out');
+                    }, 500);
+                }
+            }, 600);
+        });
+
         loginForm.addEventListener('submit', async function (e) {
             e.preventDefault();
 
