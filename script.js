@@ -528,11 +528,16 @@ function renderizarResumoGeral() {
     const resumoContainer = document.getElementById('resumoCards');
     resumoContainer.innerHTML = '';
 
+    // Usa as categorias persistidas (_config), não da memória (CATEGORIAS)
+    const categoriasParaRenderizar = dados._config || CATEGORIAS;
+
     const resumos = [];
     let totalInvestidoGeral = 0;
     let totalPrevistoGeral = 0;
 
-    for (const [categoria, dados_categoria] of Object.entries(CATEGORIAS)) {
+    for (const [categoria, dados_categoria] of Object.entries(categoriasParaRenderizar)) {
+        if (categoria === '_config') continue; // Pula campo especial
+        
         const orcamento = dados_categoria.total;
         let gastoTotal = 0;
 
@@ -842,9 +847,12 @@ window.renderizarCategorias = function(filtro = '') {
     const container = document.getElementById('categoriasContainer');
     container.innerHTML = '';
 
+    // Usa as categorias persistidas (_config), não da memória (CATEGORIAS)
+    const categoriasParaRenderizar = dados._config || CATEGORIAS;
+
     const filtroNorm = filtro.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
-    for (const [categoria, dados_categoria] of Object.entries(CATEGORIAS)) {
+    for (const [categoria, dados_categoria] of Object.entries(categoriasParaRenderizar)) {
         if (categoria === '_config') continue;
 
         const itensPlanejados = Object.keys(dados_categoria.itens || {}).join(' ').toLowerCase();
