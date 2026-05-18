@@ -1392,6 +1392,14 @@ document.getElementById('btnSalvarConfig')?.addEventListener('click', () => {
         });
     });
 
+    // Remover categorias que foram deletadas do novosDados
+    for (const catNome of Object.keys(novosDados)) {
+        if (catNome.startsWith('_')) continue; // Ignora campos especiais como _config
+        if (!novaCATEGORIAS[catNome]) {
+            delete novosDados[catNome];
+        }
+    }
+
     CATEGORIAS = novaCATEGORIAS;
     salvarDados(novosDados);
     
