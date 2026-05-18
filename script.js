@@ -253,14 +253,9 @@ function salvarDados(dados) {
     // Garante que a configuração atual das categorias seja salva junto com os dados
     dados._config = CATEGORIAS;
     
-    console.log('=== SALVANDO NO FIRESTORE ===');
-    console.log('Categorias sendo salvas em _config:', Object.keys(dados._config));
-    
     const docRef = doc(db, 'investimentos', anoAtual);
-    setDoc(docRef, dados).then(() => {
-        console.log('✓ Dados salvos com sucesso no Firestore');
-    }).catch(err => {
-        console.error('✗ Erro ao salvar dados no Firestore:', err);
+    setDoc(docRef, dados).catch(err => {
+        console.error('Erro ao salvar dados no Firestore:', err);
     });
 }
 
@@ -1282,9 +1277,6 @@ window.abrirConfiguracoes = function() {
     const dados = carregarDados();
     const categoriasParaExibir = dados._config || CATEGORIAS;
 
-    console.log('=== abrirConfiguracoes ===');
-    console.log('Categorias a exibir:', Object.keys(categoriasParaExibir));
-
     for (const [catNome, catDados] of Object.entries(categoriasParaExibir)) {
         if (catNome === '_config') continue;
         
@@ -1357,10 +1349,6 @@ document.getElementById('btnSalvarConfig')?.addEventListener('click', () => {
     const novosDados = carregarDados();
     const novaCATEGORIAS = {};
 
-    console.log('=== ANTES DE SALVAR ===');
-    console.log('CATEGORIAS original:', Object.keys(CATEGORIAS));
-    console.log('Blocos encontrados:', document.querySelectorAll('.config-category-block').length);
-
     document.querySelectorAll('.config-category-block').forEach(block => {
         const inputCat = block.querySelector('.cfg-cat-name');
         const inputTotal = block.querySelector('.cfg-cat-total');
@@ -1415,23 +1403,15 @@ document.getElementById('btnSalvarConfig')?.addEventListener('click', () => {
         });
     });
 
-    console.log('novaCATEGORIAS (após iterar):', Object.keys(novaCATEGORIAS));
-    console.log('Deletando do novosDados...');
-
     // Remover categorias que foram deletadas do novosDados
     for (const catNome of Object.keys(novosDados)) {
         if (catNome.startsWith('_')) continue; // Ignora campos especiais como _config
         if (!novaCATEGORIAS[catNome]) {
-            console.log('  Deletando categoria:', catNome);
             delete novosDados[catNome];
         }
     }
 
-    console.log('novosDados (após deletar):', Object.keys(novosDados).filter(k => !k.startsWith('_')));
-
     CATEGORIAS = novaCATEGORIAS;
-    console.log('CATEGORIAS atualizado:', Object.keys(CATEGORIAS));
-    
     salvarDados(novosDados);
     
     fecharModal(document.getElementById('modalConfiguracoes'));
