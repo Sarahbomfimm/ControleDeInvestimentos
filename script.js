@@ -1270,7 +1270,14 @@ window.abrirConfiguracoes = function() {
     const container = document.getElementById('configContainer');
     container.innerHTML = '';
 
-    for (const [catNome, catDados] of Object.entries(CATEGORIAS)) {
+    // Carrega as categorias do estado persistido (_config), não da memória
+    const dados = carregarDados();
+    const categoriasParaExibir = dados._config || CATEGORIAS;
+
+    console.log('=== abrirConfiguracoes ===');
+    console.log('Categorias a exibir:', Object.keys(categoriasParaExibir));
+
+    for (const [catNome, catDados] of Object.entries(categoriasParaExibir)) {
         if (catNome === '_config') continue;
         
         const catBlock = document.createElement('div');
