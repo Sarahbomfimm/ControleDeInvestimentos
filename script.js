@@ -217,8 +217,6 @@ function filtrarCategoriasPorAno(data, ano) {
 // Inicialização dos dados no Firestore
 async function inicializarDados() {
     try {
-        CATEGORIAS = anoAtual === '2026' ? JSON.parse(JSON.stringify(CATEGORIAS_2026_BASE)) : {};
-
         const docRef = doc(db, 'investimentos', anoAtual);
         const snap = await getDoc(docRef);
         if (snap.exists()) {
@@ -228,12 +226,13 @@ async function inicializarDados() {
         } else {
             const estrutura = anoAtual === '2026' ? criarEstruturaInicial() : {};
             // Para 2026 mantém base completa, para outros anos começa vazio.
-            estrutura._config = JSON.parse(JSON.stringify(CATEGORIAS));
+            estrutura._config = JSON.parse(JSON.stringify(CATEGORIAS_2026_BASE));
             if (anoAtual !== '2026') {
                 estrutura._categoriasCriadasNoAno = [];
             }
             await setDoc(docRef, estrutura);
             dadosCache = estrutura;
+            CATEGORIAS = filtrarCategoriasPorAno(estrutura, anoAtual);
         }
     } catch (err) {
         console.error('Erro ao inicializar dados no Firestore:', err);
