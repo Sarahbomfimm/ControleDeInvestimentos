@@ -532,6 +532,13 @@ function renderizarResumoGeral() {
 
     for (const [categoria, dados_categoria] of Object.entries(categoriasParaRenderizar)) {
         if (categoria === '_config') continue; // Pula campo especial
+
+        const categoriaNormalizada = categoria
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .trim()
+            .toLowerCase();
+
+        if (categoriaNormalizada === 'teste') continue; // Oculta categoria técnica no resumo
         
         const orcamento = dados_categoria.total;
         let gastoTotal = 0;
@@ -543,11 +550,6 @@ function renderizarResumoGeral() {
         }
 
         totalInvestidoGeral += gastoTotal;
-        const categoriaNormalizada = categoria
-            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-            .trim()
-            .toLowerCase();
-
         if (orcamento !== null && categoriaNormalizada !== 'diversos') {
             totalPrevistoGeral += orcamento;
         }
@@ -1057,14 +1059,14 @@ function renderizarItens(categoria, dados) {
             <label>Selecione o item para visualizar:</label>
             <div class="itens-selector-shell" id="itemMenuShell">
                 <button type="button" id="itemMenuToggle" class="item-menu-toggle" aria-expanded="false">
-                    <span id="itemMenuSelected">${entradas[0].item} • ${formatarMoeda(entradas[0].gastoTotal)}</span>
+                    <span id="itemMenuSelected">${entradas[0].item} • ${formatarMoeda(entradas[0].dadosItem?.limite)}</span>
                     <span class="item-menu-caret">▾</span>
                 </button>
                 <div id="itemMenuList" class="item-menu-list">
                     ${entradas.map((entrada, idx) => `
                         <button type="button" class="item-menu-option ${idx === 0 ? 'active' : ''}" data-index="${idx}">
                             <span>${entrada.item}</span>
-                            <strong>${formatarMoeda(entrada.gastoTotal)}</strong>
+                            <strong>${formatarMoeda(entrada.dadosItem?.limite)}</strong>
                         </button>
                     `).join('')}
                 </div>
@@ -1245,7 +1247,7 @@ window.abrirItensCategoria = function (categoria) {
             const entrada = entradas[index];
             if (!entrada) return;
 
-            itemMenuSelected.textContent = `${entrada.item} • ${formatarMoeda(entrada.gastoTotal)}`;
+            itemMenuSelected.textContent = `${entrada.item} • ${formatarMoeda(entrada.dadosItem?.limite)}`;
             itemDetailContainer.innerHTML = renderizarDetalheItemCategoria(categoria, entrada);
 
             itemMenuList.querySelectorAll('.item-menu-option').forEach(btn => btn.classList.remove('active'));
