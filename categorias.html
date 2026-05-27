@@ -829,13 +829,20 @@
                         <input type="text" id="editCategoryName" class="edit-field-input" disabled>
                     </div>
 
-                    <div class="edit-field">
+                    <div class="edit-field" id="editCategoryTotalField">
+                        <label class="edit-field-label">Valor Previsto Total da Categoria</label>
+                        <input type="text" id="editCategoryTotal" class="edit-field-input" placeholder="R$ 0,00">
+                    </div>
+
+                    <div id="editSubcategoriesContainer" style="display: none; margin-bottom: 12px;"></div>
+
+                    <div class="edit-field" id="editSubcategoryNameField">
                         <label class="edit-field-label">Nome da Subcategoria</label>
                         <input type="text" id="editSubcategoryName" class="edit-field-input" placeholder="Deixe em branco para não alterar">
                     </div>
 
-                    <div class="edit-field">
-                        <label class="edit-field-label">Valor Orçado</label>
+                    <div class="edit-field" id="editSubcategoryValueField">
+                        <label class="edit-field-label">Valor Orçado da Subcategoria</label>
                         <input type="text" id="editSubcategoryValue" class="edit-field-input" placeholder="Deixe em branco para não alterar">
                     </div>
 
@@ -865,7 +872,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteField, FieldPath } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDyjkV2j3wAKUs1hmIbPKJG2oTCJCWX1-4",
@@ -899,7 +906,13 @@
         const yearTitle = document.getElementById('yearTitle');
         const categoriesList = document.getElementById('categoriesList');
         const searchCategories = document.getElementById('searchCategories');
+        const editItemLabel = document.getElementById('editItemLabel');
         const editCategoryName = document.getElementById('editCategoryName');
+        const editCategoryTotalField = document.getElementById('editCategoryTotalField');
+        const editCategoryTotal = document.getElementById('editCategoryTotal');
+        const editSubcategoriesContainer = document.getElementById('editSubcategoriesContainer');
+        const editSubcategoryNameField = document.getElementById('editSubcategoryNameField');
+        const editSubcategoryValueField = document.getElementById('editSubcategoryValueField');
         const editSubcategoryName = document.getElementById('editSubcategoryName');
         const editSubcategoryValue = document.getElementById('editSubcategoryValue');
         const btnSaveEdit = document.getElementById('btnSaveEdit');
@@ -930,6 +943,36 @@
             }
             const num = parseInt(digits, 10) / 100;
             inputEl.value = 'R$ ' + num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function formatarMoedaNumero(valor) {
+            return 'R$ ' + Number(valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function renderizarSubcategoriasEditaveis(catDados) {
+            const itens = Object.entries(catDados?.itens || {});
+            if (itens.length === 0) {
+                editSubcategoriesContainer.innerHTML = '<div style="color: var(--muted); font-size: 0.85rem; margin-top: 8px;">Sem subcategorias cadastradas.</div>';
+                editSubcategoriesContainer.style.display = 'block';
+                return;
+            }
+
+            editSubcategoriesContainer.innerHTML = `
+                <div style="margin: 4px 0 8px; font-size: 0.8rem; color: var(--muted);">Subcategorias da categoria</div>
+                <div style="display: grid; gap: 12px;">
+                    ${itens.map(([subcategoria, valor]) => `
+                        <div class="edit-field" style="margin-bottom: 0;">
+                            <label class="edit-field-label">${subcategoria}</label>
+                            <input type="text" class="edit-field-input edit-subcategory-edit-value" data-subcategory="${subcategoria}" value="${formatarMoedaNumero(valor)}" placeholder="R$ 0,00">
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            editSubcategoriesContainer.style.display = 'block';
+            editSubcategoriesContainer.querySelectorAll('.edit-subcategory-edit-value').forEach(input => {
+                input.addEventListener('input', () => formatarMoedaInput(input));
+            });
         }
 
         function mostrarTela(destino) {
@@ -1118,11 +1161,11 @@
                     const subcategory = btn.dataset.subcategory;
 
                     if (action === 'edit-cat') {
-                        openEditScreen(category, null);
+                        openEditScreen(category, null, cfg);
                     } else if (action === 'delete-cat') {
                         openDeleteModal(category, null);
                     } else if (action === 'edit-sub') {
-                        openEditScreen(category, subcategory);
+                        openEditScreen(category, subcategory, cfg);
                     } else if (action === 'delete-sub') {
                         openDeleteModal(category, subcategory);
                     }
@@ -1171,13 +1214,34 @@
             confirmModal.classList.remove('hidden');
         }
 
-        function openEditScreen(categoria, subcategoria) {
+        function openEditScreen(categoria, subcategoria, cfg = {}) {
             currentCategory = categoria;
             currentSubcategory = subcategoria;
 
+            const catDados = cfg?.[categoria] || { total: 0, itens: {} };
             editCategoryName.value = categoria;
-            editSubcategoryName.value = subcategoria || '';
-            editSubcategoryValue.value = '';
+
+            editCategoryTotal.value = formatarMoedaNumero(catDados.total || 0);
+
+            if (subcategoria) {
+                editItemLabel.textContent = 'Editar Subcategoria';
+                editCategoryTotalField.style.display = 'block';
+                editSubcategoriesContainer.style.display = 'none';
+                editSubcategoryNameField.style.display = 'block';
+                editSubcategoryValueField.style.display = 'block';
+                editSubcategoryName.value = subcategoria || '';
+                editSubcategoryValue.value = formatarMoedaNumero(catDados.itens?.[subcategoria] ?? 0);
+                btnDeleteItem.textContent = 'EXCLUIR SUBCATEGORIA';
+            } else {
+                editItemLabel.textContent = 'Editar Categoria';
+                editCategoryTotalField.style.display = 'block';
+                editSubcategoryNameField.style.display = 'none';
+                editSubcategoryValueField.style.display = 'none';
+                editSubcategoryName.value = '';
+                editSubcategoryValue.value = '';
+                btnDeleteItem.textContent = 'EXCLUIR CATEGORIA';
+                renderizarSubcategoriasEditaveis(catDados);
+            }
 
             mostrarTela(editItemScreen);
         }
@@ -1233,19 +1297,18 @@
         });
 
         inputValor.addEventListener('input', () => formatarMoedaInput(inputValor));
+        editCategoryTotal.addEventListener('input', () => formatarMoedaInput(editCategoryTotal));
         editSubcategoryValue.addEventListener('input', () => formatarMoedaInput(editSubcategoryValue));
 
         btnSaveEdit.addEventListener('click', async () => {
-            if (!currentYear || !currentCategory || !currentSubcategory) {
+            if (!currentYear || !currentCategory) {
                 showFeedback(editFeedback, 'Dados inválidos.', true);
                 return;
             }
 
-            const novoNomeSubcategoria = editSubcategoryName.value.trim();
-            const novoValor = editSubcategoryValue.value.trim();
-
-            if (!novoNomeSubcategoria && !novoValor) {
-                showFeedback(editFeedback, 'Altere pelo menos um campo.', true);
+            const totalEditado = parseMoeda(editCategoryTotal.value);
+            if (Number.isNaN(totalEditado) || totalEditado < 0) {
+                showFeedback(editFeedback, 'Valor previsto total inválido.', true);
                 return;
             }
 
@@ -1261,53 +1324,76 @@
                 }
 
                 const dados = snap.data();
-                if (!dados._config?.[currentCategory]?.itens?.hasOwnProperty(currentSubcategory)) {
-                    showFeedback(editFeedback, 'Subcategoria não encontrada.', true);
+                const catDados = dados._config?.[currentCategory];
+                if (!catDados) {
+                    showFeedback(editFeedback, 'Categoria não encontrada.', true);
                     return;
                 }
 
-                const updateObj = {};
+                const totalOriginal = Number(catDados.total) || 0;
+                const updateArgs = [];
 
-                // Se mudou o nome da subcategoria
-                if (novoNomeSubcategoria && novoNomeSubcategoria !== currentSubcategory) {
-                    const valorAtual = dados._config[currentCategory].itens[currentSubcategory];
-                    updateObj[`_config.${currentCategory}.itens.${novoNomeSubcategoria}`] = valorAtual;
-                    updateObj[`_config.${currentCategory}.itens.${currentSubcategory}`] = deleteField();
+                if (currentSubcategory) {
+                    if (!catDados.itens?.hasOwnProperty(currentSubcategory)) {
+                        showFeedback(editFeedback, 'Subcategoria não encontrada.', true);
+                        return;
+                    }
+
+                    const novoNomeSubcategoria = editSubcategoryName.value.trim();
+                    const novoValor = editSubcategoryValue.value.trim();
+
+                    if (!novoNomeSubcategoria && !novoValor && Math.abs(totalEditado - totalOriginal) < 0.0001) {
+                        showFeedback(editFeedback, 'Altere pelo menos um campo.', true);
+                        return;
+                    }
+
+                    const subcategoriaFinal = novoNomeSubcategoria && novoNomeSubcategoria !== currentSubcategory
+                        ? novoNomeSubcategoria
+                        : currentSubcategory;
+
+                    const valorAtual = Number(catDados.itens[currentSubcategory]) || 0;
+                    const valorFinal = novoValor ? parseMoeda(novoValor) : valorAtual;
+
+                    if (novoValor && (Number.isNaN(valorFinal) || valorFinal < 0)) {
+                        showFeedback(editFeedback, 'Valor inválido.', true);
+                        return;
+                    }
+
+                    const itensAtualizados = { ...catDados.itens };
+                    if (subcategoriaFinal !== currentSubcategory) {
+                        delete itensAtualizados[currentSubcategory];
+                        itensAtualizados[subcategoriaFinal] = valorFinal;
+                        updateArgs.push(new FieldPath('_config', currentCategory, 'itens', subcategoriaFinal), valorFinal);
+                        updateArgs.push(new FieldPath('_config', currentCategory, 'itens', currentSubcategory), deleteField());
+                    } else if (novoValor) {
+                        itensAtualizados[currentSubcategory] = valorFinal;
+                        updateArgs.push(new FieldPath('_config', currentCategory, 'itens', currentSubcategory), valorFinal);
+                    }
+
+                    const novoTotalCalculado = Object.values(itensAtualizados)
+                        .reduce((acc, valor) => acc + (Number(valor) || 0), 0);
+                    updateArgs.push(new FieldPath('_config', currentCategory, 'total'), Math.abs(totalEditado - totalOriginal) > 0.0001 ? totalEditado : novoTotalCalculado);
                 } else {
-                    // Se só mudou o valor
-                    if (novoValor) {
-                        const novoValorNum = parseMoeda(novoValor);
-                        if (Number.isNaN(novoValorNum) || novoValorNum <= 0) {
-                            showFeedback(editFeedback, 'Valor inválido.', true);
-                            return;
+                    const entradasEditadas = Array.from(editSubcategoriesContainer.querySelectorAll('.edit-subcategory-edit-value'));
+                    const itensOriginais = catDados.itens || {};
+                    const itensAtualizados = { ...itensOriginais };
+
+                    entradasEditadas.forEach(input => {
+                        const subcategoria = input.dataset.subcategory;
+                        const valor = parseMoeda(input.value);
+                        if (Number.isNaN(valor) || valor < 0) {
+                            throw new Error(`Valor inválido em ${subcategoria}.`);
                         }
-                        updateObj[`_config.${currentCategory}.itens.${currentSubcategory}`] = novoValorNum;
-                    }
+                        itensAtualizados[subcategoria] = valor;
+                        updateArgs.push(new FieldPath('_config', currentCategory, 'itens', subcategoria), valor);
+                    });
+
+                    updateArgs.push(new FieldPath('_config', currentCategory, 'total'), Math.abs(totalEditado - totalOriginal) > 0.0001
+                        ? totalEditado
+                        : Object.values(itensAtualizados).reduce((acc, valor) => acc + (Number(valor) || 0), 0));
                 }
 
-                // Recalcula o total
-                const itensBefore = dados._config[currentCategory].itens;
-                let novoTotal = 0;
-                
-                Object.entries(itensBefore).forEach(([sub, valor]) => {
-                    if (sub === currentSubcategory && novoNomeSubcategoria && novoNomeSubcategoria !== currentSubcategory) {
-                        // Será deletado, não conta
-                    } else {
-                        const v = updateObj[`_config.${currentCategory}.itens.${sub}`] ?? valor;
-                        novoTotal += typeof v === 'number' ? v : (typeof valor === 'number' ? valor : 0);
-                    }
-                });
-
-                if (novoNomeSubcategoria && novoNomeSubcategoria !== currentSubcategory) {
-                    const valorAtual = dados._config[currentCategory].itens[currentSubcategory];
-                    novoTotal = Object.entries(itensBefore)
-                        .filter(([sub]) => sub !== currentSubcategory)
-                        .reduce((acc, [, v]) => acc + (typeof v === 'number' ? v : 0), 0) + valorAtual;
-                }
-
-                updateObj[`_config.${currentCategory}.total`] = novoTotal;
-
-                await setDoc(ref, updateObj, { merge: true });
+                await updateDoc(ref, ...updateArgs);
                 showFeedback(editFeedback, 'Alterações salvas com sucesso.');
                 setTimeout(() => {
                     openCategoriesForYear(currentYear);
@@ -1350,7 +1436,7 @@
                 }
 
                 const dados = snap.data();
-                const updateObj = {};
+                const updateArgs = [];
 
                 if (subcategoria) {
                     // Deletar subcategoria
@@ -1359,21 +1445,21 @@
                         return;
                     }
 
-                    updateObj[`_config.${categoria}.itens.${subcategoria}`] = deleteField();
+                    updateArgs.push(new FieldPath('_config', categoria, 'itens', subcategoria), deleteField());
 
                     const itensDaCategoria = Object.keys(dados._config[categoria].itens);
                     if (itensDaCategoria.length === 1) {
                         // Se era a última subcategoria, deletar categoria
-                        updateObj[`_config.${categoria}`] = deleteField();
+                        updateArgs.push(new FieldPath('_config', categoria), deleteField());
                         if (Array.isArray(dados._categoriasCriadasNoAno)) {
-                            updateObj._categoriasCriadasNoAno = dados._categoriasCriadasNoAno.filter(c => c !== categoria);
+                            updateArgs.push('_categoriasCriadasNoAno', dados._categoriasCriadasNoAno.filter(c => c !== categoria));
                         }
                     } else {
                         // Recalcular total
                         const novoTotal = Object.entries(dados._config[categoria].itens)
                             .filter(([sub]) => sub !== subcategoria)
                             .reduce((acc, [, valor]) => acc + (Number(valor) || 0), 0);
-                        updateObj[`_config.${categoria}.total`] = novoTotal;
+                        updateArgs.push(new FieldPath('_config', categoria, 'total'), novoTotal);
                     }
                 } else {
                     // Deletar categoria inteira
@@ -1382,13 +1468,13 @@
                         return;
                     }
 
-                    updateObj[`_config.${categoria}`] = deleteField();
+                    updateArgs.push(new FieldPath('_config', categoria), deleteField());
                     if (Array.isArray(dados._categoriasCriadasNoAno)) {
-                        updateObj._categoriasCriadasNoAno = dados._categoriasCriadasNoAno.filter(c => c !== categoria);
+                        updateArgs.push('_categoriasCriadasNoAno', dados._categoriasCriadasNoAno.filter(c => c !== categoria));
                     }
                 }
 
-                await setDoc(ref, updateObj, { merge: true });
+                await updateDoc(ref, ...updateArgs);
                 showFeedback(editFeedback, 'Excluído com sucesso.');
                 setTimeout(() => {
                     openCategoriesForYear(year);

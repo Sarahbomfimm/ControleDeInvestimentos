@@ -144,6 +144,20 @@ let CATEGORIAS = {
 };
 
 const CATEGORIAS_2026_BASE = JSON.parse(JSON.stringify(CATEGORIAS));
+const TOTAL_PREVISTO_2026_BASE = Object.values(CATEGORIAS_2026_BASE)
+    .reduce((acc, dadosCategoria) => acc + (Number(dadosCategoria?.total) || 0), 0);
+
+function calcularTotalPrevisto(ano, categoriasBase) {
+    // Em 2026 o previsto é travado na base oficial para evitar variação por dados persistidos.
+    if (ano === '2026') {
+        return TOTAL_PREVISTO_2026_BASE;
+    }
+
+    return Object.values(categoriasBase || {}).reduce((acc, dadosCategoria) => {
+        const totalCategoria = Number(dadosCategoria?.total);
+        return acc + (Number.isFinite(totalCategoria) ? totalCategoria : 0);
+    }, 0);
+}
 
 // Mapeamento de links das planilhas externas por categoria
 const LINKS_PLANILHAS = {
@@ -528,7 +542,8 @@ function renderizarResumoGeral() {
 
     const resumos = [];
     let totalInvestidoGeral = 0;
-    let totalPrevistoGeral = 0;
+
+    const totalPrevistoGeral = calcularTotalPrevisto(anoAtual, categoriasParaRenderizar);
 
     for (const [categoria, dados_categoria] of Object.entries(categoriasParaRenderizar)) {
         if (categoria === '_config') continue; // Pula campo especial
@@ -550,18 +565,10 @@ function renderizarResumoGeral() {
         }
 
         totalInvestidoGeral += gastoTotal;
-        if (orcamento !== null && categoriaNormalizada !== 'diversos') {
-            totalPrevistoGeral += orcamento;
-        }
-
         const disponivel = orcamento !== null ? orcamento - gastoTotal : null;
         const percentual = orcamento !== null && orcamento > 0 ? (gastoTotal / orcamento) * 100 : 0;
 
         resumos.push({ categoria, orcamento, gastoTotal, disponivel, percentual });
-    }
-
-    if (anoAtual === '2026' && Math.abs(totalPrevistoGeral - 1141017.36) < 0.005) {
-        totalPrevistoGeral = 1140817.36;
     }
 
     const totalBox = document.createElement('div');
